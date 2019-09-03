@@ -1,0 +1,184 @@
+#!/usr/bin/env python
+# $Id: desstat 46974 2018-05-09 17:27:04Z friedel $
+# $Rev:: 46974                            $:  # Revision of last commit.
+# $LastChangedBy:: friedel                $:  # Author of last commit.
+# $LastChangedDate:: 2018-05-09 12:27:04 #$:  # Date of last commit.
+
+""" Print status of currently submitted/running processing attempts """
+
+import argparse
+import sys
+import socket
+
+import processingfw.pfwcondor as pfwcondor
+import processingfw.pfwdefs as pfwdefs
+
+
+######################################################################
+def main(argv=None):
+    all_sites = ['dessub', 'descmp2', 'descmp1', 'descmp3']
+    """ Entry point """
+    parser = argparse.ArgumentParser(description='desstat')
+    parser.add_argument('--user', action='store', default=None)
+    parser.add_argument('--desq', action='store', default=None)
+    parser.add_argument('--verbose', action='store', default=None)
+    parser.add_argument('--campaign', action='store', default=None, help='Get only runs from a specific campaign')
+    parser.add_argument('--sort', action='store', default=None, help='Sort the resuts by the given key')
+    parser.add_argument('--runsite', action='store', default=None, help='Only report results from the given runsite')
+    parser.add_argument('--subsites', action='store', default=None, help='Only report results from the listed sites (comma separated). Specifying \'all\' will query all sites %s' % str(all_sites))
+    parser.add_argument('--suffix', action='store', default='.cosmology.illinois.edu')
+    parser.add_argument('--timeout', action='store', default='20', help='Timeout to wait for a response from remote server (defaults to 20 seconds)')
+    args, unknownargs = parser.parse_known_args(argv)
+
+    do_local = True
+
+    cq_str = "-constraint %sisjob -global " % pfwdefs.ATTRIB_PREFIX
+    if args.subsites is not None:
+        if args.subsites == 'all':
+            args.subsites = all_sites
+        else:
+            args.subsites = args.subsites.split(',')
+        cq_str = "-constraint %sisjob " % pfwdefs.ATTRIB_PREFIX
+        hostname = socket.gethostname()
+        hostname = hostname.replace(args.suffix, '')
+        if hostname in args.subsites:
+            del args.subsites[args.subsites.index(hostname)]
+        else:
+            do_local = False
+    if args.desq is not None:
+        cq_str += ' -name %s -pool %s ' % (args.desq, args.desq)
+            
+
+    # other command line options pass through to condor_q command
+    cq_str += ' '.join(unknownargs)
+
+    if args.user is not None:
+        cq_str += ' ' + args.user
+
+    # call function to run condor_q command
+    if do_local:
+        try:
+            (qjobs, att_jobs, orphan_jobs) = pfwcondor.condorq_dag(cq_str)
+        except pfwcondor.CondorException as exc:
+            if args.verbose:
+                raise
+            else:
+                print str(exc)
+                sys.exit(1)
+    else:
+        qjobs = {}
+        att_jobs = []
+        orphan_jobs = []
+    if args.subsites:
+        try:
+            (tqjobs, tatt_jobs, torphan_jobs) = pfwcondor.condorq_dag_many(args.subsites, args.timeout, cq_str)
+        except pfwcondor.CondorException as exc:
+            if args.verbose:
+                raise
+            else:
+                print str(exc)
+                sys.exit(1)
+        qjobs.update(tqjobs)
+        att_jobs += tatt_jobs
+        orphan_jobs += torphan_jobs
+
+    jobcnt = len(qjobs)
+    if jobcnt == 0:
+        print "No framework jobs\n"
+        return 1
+
+    # Output jobs
+
+    if args.sort is not None and args.sort.upper() != "ID":  # ID is the default sort
+        if args.sort.upper() not in ["ID", "PRJ", "PROJECT", "PIPELINE", "CAMPAIGN", "RUN", "BLOCK", "SUBBLOCK",
+           "STAT", "OPERATOR", "RUNSITE", "STATUS", "SUBMITSITE"]:
+            print "%s is not an avaiable sort parameter." % (args.sort)
+            exit(0)
+        print_header()
+        if args.sort.upper() == "PRJ":
+            args.sort = "PROJECT"
+        elif args.sort.upper() == "STAT":
+            args.sort = "STATUS"
+        count = print_sorted(att_jobs, orphan_jobs, qjobs, args.campaign, args.runsite, args.sort.lower())
+    else:
+        print_header()
+        count = print_attempts(att_jobs, qjobs, args.campaign, args.runsite)
+        count += print_orphans(orphan_jobs, qjobs, args.campaign, args.runsite)
+    
+    if args.campaign is not None and count == 0:
+        print "No jobs found for campaign %s" % (args.campaign)
+    elif args.runsite is not None and count == 0:
+        print "No jobs found for runsite %s" % (args.runsite)
+
+    return 0
+
+######################################################################
+def print_sorted(attids, orphanids, qjobs, campaign, site, sort):
+    """ Print lines in a sorted order """
+    count = 0
+    
+    order = []
+    jobs = {}
+    for jobid in attids + orphanids:
+        info = pfwcondor.get_attempt_info(jobid, qjobs)
+        if campaign is None or campaign.upper() == info['campaign'].upper():
+            if site is None or site.upper() == info['runsite'].upper():
+                count += 1
+                jobs[jobid] = info
+    data = sorted(jobs.items(), key=lambda x:x[1][sort])
+    for item in data:
+        jid = item[0]
+        jtype = " "
+        if jid in orphanids:
+            jtype = "X"
+        print_line(jid, jtype, item[1])
+    return count
+
+
+######################################################################
+def print_header():
+    """ Print header line """
+    print "%8s %1s %3s %-15s %-14s %-27s %-30s %-15s %-17s %-8s %-10s %-30s" % \
+          ("ID", "T", "PRJ", "PIPELINE", "CAMPAIGN", "RUN", "BLOCK", "SUBBLOCK",
+           "STAT (H/P/R/T)", "OPERATOR", "SUBMITSITE", "RUNSITE")
+    print "="*170
+
+######################################################################
+def print_attempts(attids, qjobs, campaign, site):
+    """ print attempt info """
+    count = 0
+    for topjobid in sorted(attids):
+        info = pfwcondor.get_attempt_info(topjobid, qjobs)
+        if campaign is None or campaign.upper() == info['campaign'].upper():
+            if site is None or site.upper() == info['runsite'].upper():
+                count += 1
+                print_line(topjobid, " ", info)
+    return count
+
+######################################################################
+def print_orphans(orphanids, qjobs, campaign, site):
+    """ Print info for single orphan job """
+    count = 0
+    for topjobid in sorted(orphanids):
+        info = pfwcondor.get_attempt_info(topjobid, qjobs)
+        if campaign is None or campaign.upper() == info['campaign'].upper():
+            if site is None or site.upper() == info['runsite'].upper():
+                count += 1
+                print_line(topjobid, "X", info)
+    return count
+
+######################################################################
+def print_line(tjid, jobtype, info):
+    """ Print single line """
+    if '-' in tjid:
+        jid = tjid[tjid.find('-')+1:]
+    else:
+        jid = tjid
+    print "%8s %1s %3s %-15s %-14s %-27s %-30s %-15s %-17s %-8s %-10s %-s" % \
+          (jid, jobtype, info['project'][:3], info['pipeline'][:15],
+           info['campaign'][:14],
+           info['run'][:27], info['block'][:25], info['subblock'][:15],
+           info['status'][:17], info['operator'][:8], info['submitsite'], info['runsite'])
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

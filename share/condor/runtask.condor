@@ -1,0 +1,24 @@
+########################################################################
+#  $Id: runtask.condor 43914 2016-09-06 18:57:30Z friedel $
+#  $Rev:: 43914                            $:  # Revision of last commit.
+#  $LastChangedBy:: friedel                $:  # Author of last commit.
+#  $LastChangedDate:: 2016-09-06 13:57:30 #$:  # Date of last commit.
+#######################################################################
+
+universe=local
+executable= $(exec)
+arguments = $(args)
+getenv=true
+environment="submit_condorid=$(Cluster).$(Process)"
+notification=never
+output=$(jobname).out
+error=$(jobname).err
+log=runtask.log
++des_isjob=TRUE
++des_project="$(project)"
++des_pipeline="$(pipeline)"
++des_run="$(run)"
++des_runsite="$(runsite)"
++des_block="uberctrl"
++des_subblock="$(jobname)"
+queue

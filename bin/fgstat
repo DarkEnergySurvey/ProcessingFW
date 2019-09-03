@@ -1,0 +1,152 @@
+#!/usr/bin/env python
+
+"""
+Print information about DESDM jobs in the FermiGrid queue from
+the FermiGrid batch system (condor) viewpoint.
+
+Similar to logging onto HPC machine and running qstat.
+
+It massages remote condor_q output of framework jobs on FermiGrid only.
+It is meant to be a top-level helper/monitor tool.
+
+Users are recommended to manually run condor_q commands if needing
+to debug a "why is my job not running" issue.  Example condor_q
+commands below.
+
+Example condor_q commands:
+#OLD    condor_q -name gk@fnpcosg1.fnal.gov -pool fnpccm1.fnal.gov [OPTS]
+        condor_q -name gpce01.fnal.gov -pool gpce01.fnal.gov:9619 [OPTS]
+        condor_q -name gpce02.fnal.gov -pool gpce02.fnal.gov:9619 [OPTS]
+
+[OPTS]
+    Limit to DES users (not necessarily framework jobs):
+        -constraint 'x509UserProxyVOName == "des"'
+
+    Limit to your jobs:
+        <fermigrid user>
+
+    Print more details about job:
+        -l <fermigrid id>
+
+    Ask condor to guess why your job isn't starting
+        -better-analyze <fermigrid id>
+"""
+
+import re
+import os
+from datetime import datetime
+from datetime import timedelta
+
+import processingfw.pfwcondor as pfwcondor
+
+
+def print_jobs(chost, jobs, now):
+    """ Print jobs for a single FermiGrid condor pool """
+    # sort on FermiGrid condor id
+    for j in sorted(jobs.keys()):
+        jdict = jobs[j]
+
+        # create single string containing FermiGrid user name (usually a pool account) along with
+        # a name more easily associated with person
+        name1 = ""
+        name2 = ""
+        if 'x509userproxyemail' in jdict:
+            name1 = jdict['x509userproxyemail'].split('@')[0]
+
+        if 'user' in jdict:
+            name2 = jdict['user'].split('@')[0]
+        name = "%s/%s" % (name1, name2)
+
+        # grab the condor id that corresponds to the id on the submit machine
+        submit_condorid = ""
+        if 'env' in jdict:
+            match = re.search(r"SUBMIT_CONDORID=(\d+)", jdict['env'])
+            if match:
+                submit_condorid = match.group(1)
+        if 'environment' in jdict:
+            match = re.search(r"SUBMIT_CONDORID=(\d+)", jdict['environment'])
+            if match:
+                submit_condorid = match.group(1)
+        if submit_condorid == "":  # not a framework job, so skip
+            continue
+
+        remotehost = ""
+        if 'remotehost' in jdict:
+            remotehost = jdict['remotehost'].replace('.fnal.gov', '')
+        elif 'lastremotehost' in jdict:
+            remotehost = '*%s' % jdict['lastremotehost'].replace('.fnal.gov', '')
+
+        # calculate wallclock
+        jobstartdate = ""
+        wallclock = ""
+        if 'jobstartdate' in jdict:
+            jobstartdate = datetime.fromtimestamp(int(jdict['jobstartdate']))
+            wallclock = now - jobstartdate
+            if wallclock.days > 1:
+                wallclock = str(wallclock).replace(" days, ", "+")
+            elif wallclock.days == 1:
+                wallclock = str(wallclock).replace(" day, ", "+")
+            else:
+                wallclock = "0+" + str(wallclock)
+            wallclock = wallclock.split('.')[0]
+
+        flavor = ""
+        if 'requirements' in jdict:
+            if 'IS_CLOUD_WNITB' in jdict['requirements']:
+                flavor = 'himem'
+
+        # try to print a string that describes the job in framework terms
+        label = ""
+        if 'des_subblock' in jdict:
+            label = 'j%s_' % jdict['des_subblock']
+        if 'des_block' in jdict:
+            label += '%s_' % jdict['des_block']
+        if 'des_run' in jdict:
+            label += jdict['des_run']
+        if label == "" and 'env' in jdict and 'DES_RUN' in jdict['env']:
+            envdict = {}
+            for piece in jdict['env'].split(';'):
+                if piece.startswith('DES_'):
+                    k, v = piece.split('=')
+                    envdict[k.lower()] = v
+            if 'des_subblock' in envdict:
+                label = 'j%s_' % envdict['des_subblock']
+            if 'des_block' in envdict:
+                label += '%s_' % envdict['des_block']
+            if 'des_run' in envdict:
+                label += envdict['des_run']
+        if label == "" and 'transferinput' in jdict:
+            match = re.search("([^,]+_job_[^,]+).wcl", jdict['transferinput'])
+            if match:
+                label = os.path.basename(match.group(1)).replace('job_', '')
+
+        print "%10s %10s %20s %5s %20s %6s  %20s %15s %10s %s" % \
+               (chost, j, name, pfwcondor.get_job_status_str(j, jobs),
+                datetime.fromtimestamp(int(jdict['qdate'])), flavor,
+                remotehost, wallclock, submit_condorid, label)
+
+
+def main():
+    """ Entry point """
+
+    #OLD fermigrid = "-name gk@fnpcosg1.fnal.gov -pool fnpccm1.fnal.gov -constraint 'x509UserProxyVOName == \"des\"'"
+    fermigridCE1 = "-name gpce04.fnal.gov -pool gpce04.fnal.gov:9619 -constraint 'x509UserProxyVOName == \"des\"'"
+    fermigridCE2 = "-name gpce03.fnal.gov -pool gpce03.fnal.gov:9619 -constraint 'x509UserProxyVOName == \"des\"'"
+    now = datetime.now()
+    #OLD jobs = pfwcondor.condor_q(fermigrid)
+    jobsCE1 = pfwcondor.condor_q(fermigridCE1)
+    jobsCE2 = pfwcondor.condor_q(fermigridCE2)
+
+
+    # print headers
+    print "%10s %10s %20s %5s %20s %6s  %20s %15s %10s %s" % \
+           ('FG CHOST', 'FG CID', 'FG user/DES user', 'stat', 'qdate', 'flavor', 'remotehost',
+            'wallclock', 'DES CID', 'DES label')
+    print '-'*168
+    #OLD print_jobs('fnpcosg1', jobs, now)
+    print_jobs('gpce04', jobsCE1, now)
+    print_jobs('gpce03', jobsCE2, now)
+
+
+if __name__ == '__main__':
+    main()

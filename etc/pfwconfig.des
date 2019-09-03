@@ -1,0 +1,105 @@
+# $Id: pfwconfig.des 45192 2017-03-23 19:26:25Z friedel $
+# $Rev:: 45192                            $:  # Revision of last commit.
+# $LastChangedBy:: friedel                $:  # Author of last commit.
+# $LastChangedDate:: 2017-03-23 14:26:25 #$:  # Date of last commit.
+
+when_to_email = run    # never, run, block
+wrapper_debug = 1
+use_qcf = True
+use_db_in = True
+use_db_out = True
+save_md5sum = True
+create_junk_tarball = True
+verify_files = True
+
+# default to not use target archive
+use_target_archive_input = never   # never, job
+use_target_archive_output = never  # wrapper, job, never
+use_home_archive_input = wrapper #
+use_home_archive_output = job # wrapper, job, block, run, never
+
+
+MASTER_COMPRESSION = file # never, file, success
+COMPRESSION_EXEC = fpack
+COMPRESSION_CLEANUP = false
+COMPRESSION_SUFFIX = .fz
+# __UCFILE__ = uncompressed file, __CFILE__ = compressed file
+COMPRESSION_ARGS = ${__UCFILE__}
+
+
+# framework patterns
+tmpfile_prefix = tmp_${unitname}_r${reqnum}p${attnum:2}w${wrapnum:5}_${modulename}
+modnamepat = ${unitname}_r${reqnum}p${attnum:2}w${wrapnum}_${modulename}
+<filename_pattern>
+    # files save in archive must have unique filenames
+    config = ${unitname}_r${reqnum}p${attnum:2}_${cfglabel}_config.des
+    junktar =  junk_j${jobnum:4}_${blockname}_${unitname}_r${reqnum}p${attnum:2}.tar
+
+    #### files not saved in archive
+    #qoutput = ${searchname}_${modulename}_${blockname}_${unitname}_r${reqnum}p${attnum:2}.${suffix}
+    qoutput = ${searchname}_${modulename}.${suffix}
+    inputwcl = ${modnamepat}_input.wcl
+    outputwcl = ${modnamepat}_output.wcl
+    log = ${modnamepat}.log
+    runjob = runjob.sh
+
+    #inputwcltar =  inputwcl_j${jobnum:4}_${blockname}_${unitname}_r${reqnum}p${attnum:2}.tar.gz
+    #outputwcltar =  outputwcl_j${jobnum:4}_${blockname}_${unitname}_r${reqnum}p${attnum:2}.tar
+    #jobwcl =  jobwcl_j${jobnum:4}_${blockname}_${unitname}_r${reqnum}p${attnum:2}.wcl
+    #jobtasklist =  task_j${jobnum:4}_${blockname}_${unitname}_r${reqnum}p${attnum:2}.list
+    #envfile =  env_j${jobnum:4}_${blockname}_${unitname}_r${reqnum}p${attnum:2}.txt
+    inputwcltar =  inputwcl_j${jobnum:4}.tar.gz
+    outputwcltar =  outputwcl_j${jobnum:4}.tar
+    jobwcl =  jobwcl_j${jobnum:4}.wcl
+    jobtasklist =  task_j${jobnum:4}.list
+    envfile =  env_j${jobnum:4}.txt
+
+
+    #block = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_${flabel}.${fsuffix}
+    #blockbase = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_${flabel}
+    #job = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum:4}_${flabel}.${fsuffix}
+    #jobbase = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum:4}_${flabel}
+    blockbase = ${flabel}
+    block = ${flabel}.${fsuffix}
+    jobbase = ${flabel}
+    job = ${flabel}.${fsuffix}
+
+    #mngrdag = ${dagtype}_${unitname}_r${reqnum}p${attnum:2}.dag
+    #blockdag = block_${unitname}_r${reqnum}p${attnum:2}.dag
+    #jobdag = job_${unitname}_r${reqnum}p${attnum:2}.dag
+    mngrdag = ${dagtype}.dag
+    blockdag = blockmngr.dag
+    jobdag = jobmngr.dag
+</filename_pattern>
+<directory_pattern>
+    <inputwcl>
+        name = wcl
+        ops = ${ops_run_dir}/inputwcl/${modulename}
+        runtime = inputwcl/${modulename}
+    </inputwcl>
+    <outputwcl>
+        name = wcl
+        ops = ${ops_run_dir}/outputwcl/${modulename}
+        runtime = outputwcl/${modulename}
+    </outputwcl>
+    <list>
+        name = list
+        ops = ${ops_run_dir}/list/${modulename}
+        runtime = list/${modulename}
+    </list>
+    <log> 
+        name = log
+        ops = ${ops_run_dir}/log/${modulename}
+        runtime = log/${modulename}
+    </log>
+    <junktar> 
+        name = junktar
+        ops = ${ops_run_dir}/junktar/
+        runtime = junktar
+    </junktar>
+    <jobdir> 
+        name = jobdir
+        ops = tbd 
+        runtime = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum}
+    </jobdir>
+</directory_pattern>

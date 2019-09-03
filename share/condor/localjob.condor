@@ -1,0 +1,25 @@
+########################################################################
+#  $Id: localjob.condor 11008 2013-03-06 17:35:37Z mgower $
+#  $Rev:: 11008                            $:  # Revision of last commit.
+#  $LastChangedBy:: mgower                 $:  # Author of last commit.
+#  $LastChangedDate:: 2013-03-06 11:35:37 #$:  # Date of last commit.
+#######################################################################
+
+universe=local
+executable= $(exec)
+arguments = $(args)
+getenv=true
+environment="submit_condorid=$(Cluster).$(Process)"
+notification=never
+output=$(run)_$(jobname).out
+error=$(run)_$(jobname).err
+log=../uberctrl/localjob.log
++des_isjob=TRUE
++des_project="$(project)"
++des_pipeline="$(pipeline)"
++des_run="$(run)"
++des_runsite="$(runsite)"
++des_block="$(block)"
++des_subblock="$(jobname)"
+initialdir = ../$(block)
+queue

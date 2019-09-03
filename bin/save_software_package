@@ -1,0 +1,146 @@
+#!/usr/bin/env python
+# $Id: save_software_package 41004 2015-12-11 15:49:41Z mgower $
+# $Rev:: 41004                            $:  # Revision of last commit.
+# $LastChangedBy:: mgower                 $:  # Author of last commit.
+# $LastChangedDate:: 2015-12-11 09:49:41 #$:  # Date of last commit.
+
+""" Save information about eups pipeline metapackage to DB """
+
+import argparse
+import sys
+import re
+
+import despymisc.miscutils as miscutils
+import despydb.desdbi as desdbi
+
+
+def parse_file(filename):
+    """ Parse the eups table file """
+    contents = []
+    with open(filename, 'r') as tablefh:
+        for line in tablefh:
+            match = re.search(r"setup.*\(([^\)]+)\)", line)
+            if match:
+                # look for separating spaces, comma, or -j
+                match2 = re.search(r"([^, \t\n\r\f\v]+)(\s*,\s*|\s+-\S+\s+|\s+)([^, \t\n\r\f\v]+)",
+                                   match.group(1))
+                if match2:
+                    contents.append((match2.group(1), match2.group(3)))
+                else:
+                    print "Warning: Skipping line.  Couldn't find name and version in line:", line
+            #else:
+            #    print "Skipping line:", line
+    return contents
+
+
+
+def save_meta_package(dbh, name, version, note):
+    """ save the meta package information """
+    if miscutils.fwdebug_check(3, 'SAVESOFT_DEBUG'):
+        miscutils.fwdebug_print("BEG")
+
+    from_dual = dbh.from_dual()
+    row = {}
+    row['name'] = dbh.quote(name)
+    row['version'] = dbh.quote(version)
+    if note is not None:
+        row['note'] = dbh.quote(note)
+    sql = """insert into ops_meta_package (%s) select %s %s where not exists
+             (select null from ops_meta_package where name=%s and version=%s)""" % \
+          (','.join(row.keys()), ','.join(row.values()), from_dual,
+           row['name'], row['version'])
+    if miscutils.fwdebug_check(3, 'SAVESOFT_DEBUG'):
+        miscutils.fwdebug_print("\t%s\n" % sql)
+    curs = dbh.cursor()
+    curs.execute(sql)
+    if miscutils.fwdebug_check(3, 'SAVESOFT_DEBUG'):
+        miscutils.fwdebug_print("Number of rows inserted into ops_meta_package: %s" % curs.rowcount)
+        miscutils.fwdebug_print("END")
+
+
+def save_indiv_packages(dbh, packages):
+    """ Save information about the individual packages inside metapackage """
+    if miscutils.fwdebug_check(3, 'SAVESOFT_DEBUG'):
+        miscutils.fwdebug_print("BEG")
+
+    from_dual = dbh.from_dual()
+    curs = dbh.cursor()
+    row = {}
+    inscnt = 0
+    for (name, version) in packages:
+        row['name'] = dbh.quote(name)
+        row['version'] = dbh.quote(version)
+        sql = """insert into ops_indiv_package (%s) select %s %s where not exists
+                 (select null from ops_indiv_package where name=%s and version=%s)""" % \
+              (','.join(row.keys()), ','.join(row.values()), from_dual,
+               row['name'], row['version'])
+        if miscutils.fwdebug_check(3, 'SAVESOFT_DEBUG'):
+            miscutils.fwdebug_print("\t%s\n" % sql)
+        curs.execute(sql)
+        inscnt += curs.rowcount
+    if miscutils.fwdebug_check(3, 'SAVESOFT_DEBUG'):
+        miscutils.fwdebug_print("Number of rows inserted into ops_indiv_package: %s" % inscnt)
+        miscutils.fwdebug_print("END")
+
+
+def save_meta_contents(dbh, metaname, metaversion, packages):
+    """ Tie individual packages to meta package """
+    if miscutils.fwdebug_check(3, 'SAVESOFT_DEBUG'):
+        miscutils.fwdebug_print("BEG")
+
+    from_dual = dbh.from_dual()
+    row = {}
+    row['meta_name'] = dbh.quote(metaname)
+    row['meta_version'] = dbh.quote(metaversion)
+    curs = dbh.cursor()
+    cnt = 1
+    inscnt = 0
+    for (name, version) in packages:
+        row['indiv_name'] = dbh.quote(name)
+        row['indiv_version'] = dbh.quote(version)
+        row['indiv_order'] = dbh.quote(cnt)
+
+        sql = """insert into ops_meta_package_contents (%s) select %s %s where not exists
+                 (select null from ops_meta_package_contents where meta_name=%s and
+                  meta_version=%s and indiv_name=%s and indiv_version=%s)""" % \
+              (','.join(row.keys()), ','.join(row.values()), from_dual,
+               row['meta_name'], row['meta_version'], row['indiv_name'], row['indiv_version'])
+        if miscutils.fwdebug_check(3, 'SAVESOFT_DEBUG'):
+            miscutils.fwdebug_print("\t%s\n" % sql)
+        curs.execute(sql)
+        inscnt += curs.rowcount
+        cnt += 1
+    if miscutils.fwdebug_check(3, 'SAVESOFT_DEBUG'):
+        miscutils.fwdebug_print("Number of rows inserted into ops_meta_package_contents: %s" % \
+                                inscnt)
+        miscutils.fwdebug_print("END")
+
+
+def save_software_info(dbh, name, version, contents, note=None):
+    """  save eups table information """
+    save_meta_package(dbh, name, version, note)
+    save_indiv_packages(dbh, contents)
+    save_meta_contents(dbh, name, version, contents)
+
+
+
+def main(args):
+    """ Entry point """
+    parser = argparse.ArgumentParser(description='Submit a run to the processing framework')
+    parser.add_argument('--des_services', action='store')
+    parser.add_argument('--des_db_section', action='store')
+    parser.add_argument('--note', action='store')
+    parser.add_argument('name', action='store')
+    parser.add_argument('version', action='store')
+    parser.add_argument('tablefile', action='store')
+
+    args = vars(parser.parse_args())   # convert dict
+
+    contents = parse_file(args['tablefile'])
+    if len(contents) > 0:
+        dbh = desdbi.DesDbi(args['des_services'], args['des_db_section'])
+        save_software_info(dbh, args['name'], args['version'], contents, args['note'])
+        dbh.commit()
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))

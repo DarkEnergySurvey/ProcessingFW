@@ -1,0 +1,7 @@
+# loads IntegrationUtils and DatabaseApps
+setupRequired(FileMgmt) 
+setupRequired(QCFramework)
+setupRequired(psutil 4.3.1+0)
+envPrepend(PATH, ${PRODUCT_DIR}/bin)
+envPrepend(PATH, ${PRODUCT_DIR}/tools)
+envPrepend(PYTHONPATH, ${PRODUCT_DIR}/python)
