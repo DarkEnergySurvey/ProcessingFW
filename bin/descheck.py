@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # $Id: descheck.py 38174 2015-05-11 22:07:19Z mgower $
 # $Rev:: 38174                            $:  # Revision of last commit.
 # $LastChangedBy:: mgower                 $:  # Author of last commit.
@@ -33,16 +33,16 @@ def main():
     # usePFWconfig and get_db_config set to True because dessubmit does
     #   (work only done at submit time)
     #   use_db_in=False in submit wcl overrides get_db_config
-    print "Gathering wcl..."
+    print("Gathering wcl...")
     config = pfwconfig.PfwConfig(args)
 
     config[pfwdefs.ATTNUM] = '0'   # must be string as if read from wcl file
     testcnts = pfwcheck.check(config, '')
 
-    print "\nTest Summary"
-    print "\tErrors: %d" % testcnts[0]
-    print "\tWarnings: %d" % testcnts[1]
-    print "\tItems fixed: %d" % testcnts[2]
+    print("\nTest Summary")
+    print(f"\tErrors: {testcnts[0]:d}")
+    print(f"\tWarnings: {testcnts[1]:d}")
+    print(f"\tItems fixed: {testcnts[2]:d}")
 
 if __name__ == '__main__':
     main()

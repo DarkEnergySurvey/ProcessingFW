@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # $Id: dump_db_config 41004 2015-12-11 15:49:41Z mgower $
 # $Rev:: 41004                            $:  # Revision of last commit.
 # $LastChangedBy:: mgower                 $:  # Author of last commit.
@@ -25,20 +25,20 @@ def dump_db_config(argv=None):
     parser.add_argument('outfilename', action='store')
     args = parser.parse_args()
 
-    print "Getting defaults from DB...",
+    print("Getting defaults from DB...",)
     sys.stdout.flush()
     starttime = time.time()
     dbh = pfwdb.PFWDB(args.des_services, args.section)
     dbwcl = WCL(dbh.get_database_defaults())
     dbh.close()
-    print "Done (%0.2f secs)" % (time.time()-starttime)
+    print(f"Done ({time.time() - starttime:0.2f} secs)")
 
-    print "Writing to file...",
+    print("Writing to file...")
     sys.stdout.flush()
     starttime = time.time()
     with open(args.outfilename, "w") as outfh:
         dbwcl.write(outfh, True, 4)
-    print "Done (%0.2f secs)" % (time.time()-starttime)
+    print(f"Done ({time.time() - starttime:0.2f} secs)")
 
     return 0
 

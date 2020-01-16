@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # $Id: pfwcompression.py 44002 2016-09-15 18:37:31Z friedel $
 # $Rev:: 44002                            $:  # Revision of last commit.
 # $LastChangedBy:: friedel                $:  # Author of last commit.
@@ -35,8 +34,8 @@ def run_compression_command(cmd, fname_compressed, max_try_cnt=1):
             # check exit code
             returncode = process_comp.returncode
         except OSError as exc:
-            errstr = "I/O error({0}): {1}".format(exc.errno, exc.strerror)
-            print errstr
+            errstr = f"I/O error({exc.errno}): {exc.strerror}"
+            print(errstr)
             returncode = 1
             # check for partial compressed output and remove
             if os.path.exists(fname_compressed):
@@ -52,7 +51,7 @@ def compress_files(listfullnames, compresssuffix, execname, argsorig, max_try_cn
     """ Compress given files """
 
     if miscutils.fwdebug_check(3, 'PFWCOMPRESS_DEBUG'):
-        miscutils.fwdebug_print("BEG num files to compress = %s" % (len(listfullnames)))
+        miscutils.fwdebug_print(f"BEG num files to compress = {len(listfullnames)}")
 
     results = {}
     tot_bytes_before = 0
@@ -64,7 +63,7 @@ def compress_files(listfullnames, compresssuffix, execname, argsorig, max_try_cn
         returncode = 1
         try:
             if not os.path.exists(fname):
-                errstr = "Error: Uncompressed file does not exist (%s)" % fname
+                errstr = f"Error: Uncompressed file does not exist ({fname})"
                 returncode = 1
             else:
                 tot_bytes_before += os.path.getsize(fname)
@@ -76,17 +75,17 @@ def compress_files(listfullnames, compresssuffix, execname, argsorig, max_try_cn
                                                      {'__UCFILE__': fname,
                                                       '__CFILE__': fname_compressed},
                                                      None)
-                cmd = '%s %s' % (execname, args)
+                cmd = f"{execname} {args}"
                 if miscutils.fwdebug_check(3, 'PFWCOMPRESS_DEBUG'):
-                    miscutils.fwdebug_print("compression command: %s" % cmd)
+                    miscutils.fwdebug_print(f"compression command: {cmd}")
 
                 returncode = run_compression_command(cmd, fname_compressed, max_try_cnt)
         except IOError as exc:
-            errstr = "I/O error({0}): {1}".format(exc.errno, exc.strerror)
+            errstr = f"I/O error({exc.errno}): {exc.strerror}"
             returncode = 1
 
         if returncode != 0:
-            errstr = "Compression failed with exit code %i" % returncode
+            errstr = f"Compression failed with exit code {returncode:d}"
             # check for partial compressed output and remove
             if os.path.exists(fname_compressed):
                 miscutils.fwdebug_print("Compression failed.  Removing compressed file.")
@@ -106,5 +105,5 @@ def compress_files(listfullnames, compresssuffix, execname, argsorig, max_try_cn
                           'cmd': cmd}
 
     if miscutils.fwdebug_check(3, 'PFWCOMPRESS_DEBUG'):
-        miscutils.fwdebug_print("END bytes %s => %s" % (tot_bytes_before, tot_bytes_after))
+        miscutils.fwdebug_print(f"END bytes {tot_bytes_before} => {tot_bytes_after}")
     return (results, tot_bytes_before, tot_bytes_after)

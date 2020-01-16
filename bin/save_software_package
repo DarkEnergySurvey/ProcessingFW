@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # $Id: save_software_package 41004 2015-12-11 15:49:41Z mgower $
 # $Rev:: 41004                            $:  # Revision of last commit.
 # $LastChangedBy:: mgower                 $:  # Author of last commit.
@@ -27,7 +27,7 @@ def parse_file(filename):
                 if match2:
                     contents.append((match2.group(1), match2.group(3)))
                 else:
-                    print "Warning: Skipping line.  Couldn't find name and version in line:", line
+                    print("Warning: Skipping line.  Couldn't find name and version in line:", line)
             #else:
             #    print "Skipping line:", line
     return contents
@@ -45,16 +45,14 @@ def save_meta_package(dbh, name, version, note):
     row['version'] = dbh.quote(version)
     if note is not None:
         row['note'] = dbh.quote(note)
-    sql = """insert into ops_meta_package (%s) select %s %s where not exists
-             (select null from ops_meta_package where name=%s and version=%s)""" % \
-          (','.join(row.keys()), ','.join(row.values()), from_dual,
-           row['name'], row['version'])
+    sql = f"""insert into ops_meta_package ({','.join(list(row.keys()))}) select { ','.join(list(row.values()))} {from_dual} where not exists
+             (select null from ops_meta_package where name={row['name']} and version={row['version']})"""
     if miscutils.fwdebug_check(3, 'SAVESOFT_DEBUG'):
-        miscutils.fwdebug_print("\t%s\n" % sql)
+        miscutils.fwdebug_print(f"\t{sql}\n")
     curs = dbh.cursor()
     curs.execute(sql)
     if miscutils.fwdebug_check(3, 'SAVESOFT_DEBUG'):
-        miscutils.fwdebug_print("Number of rows inserted into ops_meta_package: %s" % curs.rowcount)
+        miscutils.fwdebug_print(f"Number of rows inserted into ops_meta_package: {curs.rowcount}")
         miscutils.fwdebug_print("END")
 
 
@@ -70,16 +68,14 @@ def save_indiv_packages(dbh, packages):
     for (name, version) in packages:
         row['name'] = dbh.quote(name)
         row['version'] = dbh.quote(version)
-        sql = """insert into ops_indiv_package (%s) select %s %s where not exists
-                 (select null from ops_indiv_package where name=%s and version=%s)""" % \
-              (','.join(row.keys()), ','.join(row.values()), from_dual,
-               row['name'], row['version'])
+        sql = f"""insert into ops_indiv_package ({','.join(list(row.keys()))}) select {','.join(list(row.values()))} {from_dual} where not exists
+                 (select null from ops_indiv_package where name={row['name']} and version={row['version']})"""
         if miscutils.fwdebug_check(3, 'SAVESOFT_DEBUG'):
-            miscutils.fwdebug_print("\t%s\n" % sql)
+            miscutils.fwdebug_print(f"\t{sql}\n")
         curs.execute(sql)
         inscnt += curs.rowcount
     if miscutils.fwdebug_check(3, 'SAVESOFT_DEBUG'):
-        miscutils.fwdebug_print("Number of rows inserted into ops_indiv_package: %s" % inscnt)
+        miscutils.fwdebug_print(f"Number of rows inserted into ops_indiv_package: {inscnt}")
         miscutils.fwdebug_print("END")
 
 
@@ -100,19 +96,16 @@ def save_meta_contents(dbh, metaname, metaversion, packages):
         row['indiv_version'] = dbh.quote(version)
         row['indiv_order'] = dbh.quote(cnt)
 
-        sql = """insert into ops_meta_package_contents (%s) select %s %s where not exists
-                 (select null from ops_meta_package_contents where meta_name=%s and
-                  meta_version=%s and indiv_name=%s and indiv_version=%s)""" % \
-              (','.join(row.keys()), ','.join(row.values()), from_dual,
-               row['meta_name'], row['meta_version'], row['indiv_name'], row['indiv_version'])
+        sql = f"""insert into ops_meta_package_contents ({','.join(list(row.keys()))}) select {','.join(list(row.values()))} {from_dual} where not exists
+                 (select null from ops_meta_package_contents where meta_name={row['meta_name']} and
+                  meta_version={row['meta_version']} and indiv_name={row['indiv_name']} and indiv_version={row['indiv_version']})"""
         if miscutils.fwdebug_check(3, 'SAVESOFT_DEBUG'):
-            miscutils.fwdebug_print("\t%s\n" % sql)
+            miscutils.fwdebug_print(f"\t{sql}\n")
         curs.execute(sql)
         inscnt += curs.rowcount
         cnt += 1
     if miscutils.fwdebug_check(3, 'SAVESOFT_DEBUG'):
-        miscutils.fwdebug_print("Number of rows inserted into ops_meta_package_contents: %s" % \
-                                inscnt)
+        miscutils.fwdebug_print(f"Number of rows inserted into ops_meta_package_contents: {inscnt}")
         miscutils.fwdebug_print("END")
 
 
@@ -137,7 +130,7 @@ def main(args):
     args = vars(parser.parse_args())   # convert dict
 
     contents = parse_file(args['tablefile'])
-    if len(contents) > 0:
+    if contents:
         dbh = desdbi.DesDbi(args['des_services'], args['des_db_section'])
         save_software_info(dbh, args['name'], args['version'], contents, args['note'])
         dbh.commit()

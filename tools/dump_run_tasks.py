@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # $Id: dump_run_tasks.py 41123 2016-01-07 15:36:30Z mgower $
 # $Rev:: 41123                            $:  # Revision of last commit.
@@ -17,7 +17,7 @@ import processingfw.pfwdb as pfwdb
 ######################################################################
 def print_header():
     """ Print report column headers """
-    print "tid, parent_tid, root_tid, name, label, status, infotable, start_time, end_time"
+    print("tid, parent_tid, root_tid, name, label, status, infotable, start_time, end_time")
 
 ######################################################################
 def get_start_time(x):
@@ -28,25 +28,25 @@ def get_start_time(x):
 ######################################################################
 def print_task(taskd, indent=''):
     """ Print information for a single task """
-    print indent, taskd['id'], taskd['parent_task_id'], taskd['root_task_id'],\
-          taskd['name'], taskd['label'], taskd['status'], 
+    print(indent, taskd['id'], taskd['parent_task_id'], taskd['root_task_id'],
+          taskd['name'], taskd['label'], taskd['status'])
 
     if taskd['info_table'] is None:
-        print "NO_INFO_TABLE",
+        print("NO_INFO_TABLE")
 
     if taskd['start_time'] is None:
-        print "    -  -     :  :  ",
+        print("    -  -     :  :  ")
     else:
-        print taskd['start_time'].strftime("%Y-%m-%d %H:%M:%S"),
+        print(taskd['start_time'].strftime("%Y-%m-%d %H:%M:%S"))
     if taskd['end_time'] is None:
-        print "    -  -     :  :  ",
+        print("    -  -     :  :  ")
     else:
-        print taskd['end_time'].strftime("%Y-%m-%d %H:%M:%S"),
+        print(taskd['end_time'].strftime("%Y-%m-%d %H:%M:%S"))
 
     if taskd['start_time'] is not None and taskd['end_time'] is not None:
-        print "%8.2f" % (taskd['end_time'] - taskd['start_time']).total_seconds() 
+        print(f"{(taskd['end_time'] - taskd['start_time']).total_seconds():8.2f}")
     else:
-        print ""
+        print("")
 
 ######################################################################
 def recurs_dump(tasks, tids, indent=''):
@@ -56,7 +56,7 @@ def recurs_dump(tasks, tids, indent=''):
     #for taskd in sorted(tlist, key=lambda x: x['created_date'], reverse=False):
     #for taskd in sorted(tlist, key=lambda x: x['id'], reverse=False):
         print_task(taskd, indent)
-        if len(taskd['children']) > 0:
+        if taskd['children']:
             recurs_dump(tasks, taskd['children'], indent+'    ')
 
 ######################################################################
@@ -76,7 +76,7 @@ def parse_args(argv):
     if args['attempt_str'] is not None:
         args['reqnum'], args['unitname'], args['attnum'] = parse_attempt_str(args['attempt_str'])
     elif args['reqnum'] is None:
-        print "Error:  Must specify attempt_str or r,u,a"
+        print("Error:  Must specify attempt_str or r,u,a")
         sys.exit(1)
 
     return args
@@ -86,7 +86,7 @@ def parse_attempt_str(attstr):
     """ Parse attempt string for reqnum, unitname, and attnum """
     amatch = re.search(r"(\S+)_r([^p]+)p([^_]+)", attstr)
     if amatch is None:
-        print "Error:  cannot parse attempt string", attstr
+        print("Error:  cannot parse attempt string", attstr)
         sys.exit(1)
 
     unitname = amatch.group(1)
@@ -104,7 +104,7 @@ def get_task_info(args):
     # get the run info
     attinfo = dbh.get_attempt_info(args['reqnum'], args['unitname'], args['attnum'])
     attid = attinfo['task_id']
-    print "attempt task id = ", attid
+    print("attempt task id = ", attid)
 
     #sql = """WITH alltasks (id, parent_task_id, root_task_id, lvl,
     #name, info_table, start_time, end_time, status, exec_host,label)
@@ -117,8 +117,8 @@ def get_task_info(args):
     #root_task_id, lvl, name, info_table, start_time, end_time, status,
     #exec_host, label FROM alltasks ORDER BY lvl ASC""" % (attid)
 
-    sql = "select * from task where root_task_id=%d order by id" % attid
-    print sql
+    sql = f"select * from task where root_task_id={attid:d} order by id"
+    print(sql)
 
     curs = dbh.cursor()
     curs.execute(sql)
@@ -157,21 +157,21 @@ def main(argv):
     """ Program entry point """
 
     args = parse_args(argv)
-    print "unitname =", args['unitname']
-    print "reqnum =", args['reqnum']
-    print "attnum =", args['attnum']
+    print("unitname =", args['unitname'])
+    print("reqnum =", args['reqnum'])
+    print("attnum =", args['attnum'])
 
     attid, tasks = get_task_info(args)
     orphans = add_children(tasks)
 
-    print len(tasks), "tasks total"
+    print(len(tasks), "tasks total")
 
     print_header()
     recurs_dump(tasks, [attid], '')
 
-    if len(orphans) > 0:
-        print "********** ORPHANS  **********"
-        for taskd in sorted(orphans.values(), key=lambda x:x['parent_task_id'], reverse=False):
+    if orphans:
+        print("********** ORPHANS  **********")
+        for taskd in sorted(orphans.values(), key=lambda x: x['parent_task_id'], reverse=False):
             print_task(taskd)
 
 

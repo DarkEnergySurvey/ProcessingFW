@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # $Id: pfwlog.py 41004 2015-12-11 15:49:41Z mgower $
 # $Rev:: 41004                            $:  # Revision of last commit.
 # $LastChangedBy:: mgower                 $:  # Author of last commit.
@@ -45,14 +44,13 @@ def log_pfw_event(config, block=None, subblock=None,
     if not dagid:
         dagid = 0
 
-    deslogfh = open("%s/%s.deslog" % (logdir, run), "a", 0)
-    deslogfh.write("%s %s %s %s %s %s %s" % (get_timestamp(), dagid, run,
-                                             runsite, block, subblocktype, subblock))
+    deslogfh = open(f"{logdir}/{run}.deslog", "ab", 0)
+    deslogfh.write(f"{get_timestamp()} {dagid} {run} {runsite} {block} {subblocktype} {subblock}".encode('utf-8'))
     if isinstance(info, list):
         for col in info:
-            deslogfh.write(",%s" % col)
+            deslogfh.write(f",{col}".encode('utf-8'))
     else:
-        deslogfh.write(",%s" % info)
+        deslogfh.write(f",{info}".encode('utf-8'))
 
-    deslogfh.write("\n")
+    deslogfh.write("\n".encode('utf-8'))
     deslogfh.close()

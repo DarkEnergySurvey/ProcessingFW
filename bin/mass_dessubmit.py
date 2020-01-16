@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # $Id: mass_dessubmit.py 42539 2016-06-09 21:00:23Z mgower $
 # $Rev:: 42539                            $:  # Revision of last commit.
@@ -68,13 +68,13 @@ def parse_cmdline(argv):
 
     args = vars(parser.parse_args(argv))   # convert dict
 
-    if args['logdir'] is not None and len(args['logdir']) != 0:
-        if args['logdir'][0] != '/':
-            args['logdir'] = "%s/%s" % (os.getcwd(), args['logdir'])
+    if args['logdir'] is not None and args['logdir']:
+        if not args['logdir'].startswith('/'):
+            args['logdir'] = f"{os.getcwd()}/{args['logdir']}"
 
-    if args['submitfiledir'] is not None and len(args['submitfiledir']) != 0:
-        if args['submitfiledir'][0] != '/':
-            args['submitfiledir'] = "%s/%s" % (os.getcwd(), args['submitfiledir'])
+    if args['submitfiledir'] is not None and args['submitfiledir']:
+        if not args['submitfiledir'].startswith('/'):
+            args['submitfiledir'] = f"{os.getcwd()}/{args['submitfiledir']}"
 
     return args
 
@@ -82,10 +82,10 @@ def parse_cmdline(argv):
 def can_submit(args):
     """ whether can submit another attempt or not """
 
-    print "%s: Checking whether can submit another attempt" % tsstr()
+    print(f"{tsstr()}: Checking whether can submit another attempt")
     dosubmit = None
 
-    constraint_str = "-constraint %sisjob " % pfwdefs.ATTRIB_PREFIX
+    constraint_str = f"-constraint {pfwdefs.ATTRIB_PREFIX}isjob"
     (qjobs, att_jobs, _) = pfwcondor.condorq_dag(constraint_str)
 
     jobcnt = 0
@@ -94,7 +94,7 @@ def can_submit(args):
         if (args['site'] is None or args['site'].lower() == info['runsite'].lower()) and \
            (args['operator'] is None or args['operator'].lower() == info['operator'].lower()) and \
            (args['pipeline'] is None or args['pipeline'].lower() == info['pipeline'].lower()) and \
-           (args['reqnum'] is None or '_r%sp' % (args['reqnum']) in info['run']):
+           (args['reqnum'] is None or f"_r{args['reqnum']}p" in info['run']):
             jobcnt += 1
 
     if jobcnt >= args['maxjobs']:
@@ -102,14 +102,14 @@ def can_submit(args):
     else:
         dosubmit = True
 
-    print "%s:\tmaxjobs=%s, jobcnt=%s, can_submit=%s" % (tsstr(), args['maxjobs'], jobcnt, dosubmit)
+    print(f"{tsstr()}:\tmaxjobs={args['maxjobs']}, jobcnt={jobcnt}, can_submit={dosubmit}")
     return dosubmit
 
 
 ######################################################################
 def submit(submitfile, logdir):
     """ Call dessubmit on the specific submit file that has mass submit variables replaced """
-    print "%s: Submitting %s" % (tsstr(), submitfile)
+    print(f"{tsstr()} Submitting {submitfile}")
 
     cwd = os.getcwd()
 
@@ -117,15 +117,15 @@ def submit(submitfile, logdir):
     submitbase = os.path.basename(submitfile)
     submitdir = os.path.dirname(submitfile)
     prefix = os.path.splitext(submitbase)[0]
-    logfilename = "%s.log" % prefix
+    logfilename = f"{prefix}.log"
 
-    if logdir is not None and len(logdir) != 0:
+    if logdir is not None and logdir:
         miscutils.coremakedirs(logdir)
-        logfilename = "%s/%s" % (logdir, logfilename)
+        logfilename = f"{logdir}/{logfilename}"
 
     os.chdir(submitdir)
-    print "%s: dessubmit stdout/stderr - %s" % (tsstr(), logfilename)
-    cmd = "dessubmit %s" % (submitbase)
+    print(f"{tsstr()}: dessubmit stdout/stderr - {logfilename}")
+    cmd = f"dessubmit {submitbase}"
     with open(logfilename, 'w') as logfh:
         # call dessubmit
         try:
@@ -134,15 +134,15 @@ def submit(submitfile, logdir):
                                        stdout=logfh,
                                        stderr=subprocess.STDOUT)
         except:
-            (extype, exvalue, _) = sys.exc_info()
-            print "********************"
-            print "Unexpected error: %s" % exvalue
-            print "cmd> %s" % cmd
-            print "Probably could not find %s in path" % cmd.split()[0]
+            (_, exvalue, _) = sys.exc_info()
+            print("********************")
+            print(f"Unexpected error: {exvalue}")
+            print(f"cmd> {cmd}")
+            print(f"Probably could not find {cmd.split()[0]} in path")
             raise
 
         process.wait()
-        print "%s: dessubmit finished with exit code = %s" % (tsstr(), process.returncode)
+        print(f"{tsstr()}: dessubmit finished with exit code = {process.returncode}")
         if process.returncode != 0:
             raise Exception("Non-zero exit code from dessubmit")
 
@@ -176,15 +176,15 @@ def main(argv):
                 newtname = origtname
 
             if args['submitfiledir'] is not None:
-                newtname = '%s/%s' % (args['submitfiledir'], newtname)
+                newtname = f"{args['submitfiledir']}/{newtname}"
 
             logdir = ""
             if args['logdir'] is not None:
                 logdir = args['logdir']
 
-            for i in range(0, len(info)):
-                newtname = newtname.replace('XXX%dXXX' % (i+1), info[i])
-                logdir = logdir.replace('XXX%dXXX' % (i+1), info[i])
+            for i, val in enumerate(info):
+                newtname = newtname.replace(f'XXX{(i + 1):d}XXX', val)
+                logdir = logdir.replace(f'XXX{(i + 1):d}XXX', val)
             if not newtname.endswith(".des"):
                 newtname += ".des"
 
@@ -197,18 +197,17 @@ def main(argv):
                 # can I submit?
                 if not args['nosubmit']:
                     while not can_submit(args):
-                        print "%s: Shouldn't submit, sleeping %s seconds." % \
-                              (tsstr(), args['delay_check'])
+                        print(f"{tsstr()}: Shouldn't submit, sleeping {args['delay_check']} seconds.")
                         time.sleep(args['delay_check'])
 
                 newwcl = origtwcl
 
-                for i in range(0, len(info)):
-                    newwcl = newwcl.replace('XXX%dXXX' % (i+1), info[i])
+                for i, val in enumerate(info):
+                    newwcl = newwcl.replace(f'XXX{(i + 1):d}XXX', val)
 
-                newwcl += 'GROUP_SUBMIT_ID = %d\n' % args['group_submit_id']
+                newwcl += f"GROUP_SUBMIT_ID = {args['group_submit_id']:d}\n"
 
-                print "%s: Writing submit wcl: %s" % (tsstr(), newtname)
+                print(f"{tsstr()}: Writing submit wcl: {newtname}")
                 with open(newtname, 'w') as ntwclfh:
                     ntwclfh.write(newwcl)
 
@@ -216,10 +215,10 @@ def main(argv):
                 if not args['nosubmit']:
                     submit(newtname, logdir)
 
-                    print "%s: Sleeping %s seconds after submit." % (tsstr(), args['delay'])
+                    print(f"{tsstr()}: Sleeping {args['delay']} seconds after submit.")
                     time.sleep(args['delay'])
             else:
-                print "skipping %s" % newtname
+                print(f"skipping {newtname}")
 
 
 if __name__ == '__main__':

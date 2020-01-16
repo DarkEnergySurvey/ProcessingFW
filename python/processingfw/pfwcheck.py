@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # $Id: pfwcheck.py 47308 2018-07-31 19:42:07Z friedel $
 # $Rev:: 47308                            $:  # Revision of last commit.
 # $LastChangedBy:: friedel                $:  # Author of last commit.
@@ -8,15 +7,15 @@
 
 """ Contains functions used to check submit wcl for missing or invalid values """
 
+import sys
+import traceback
+
 import processingfw.pfwdefs as pfwdefs
+import processingfw.pfwutils as pfwutils
 import intgutils.intgmisc as intgmisc
 import intgutils.intgdefs as intgdefs
 import despymisc.miscutils as miscutils
-import processingfw.pfwutils as pfwutils
 import filemgmt.filemgmt_defs as fmdefs
-import processingfw.pfwblock as pfwblock
-import sys
-import traceback
 
 NUMCNTS = 4
 ERRCNT_POS = 0
@@ -28,19 +27,19 @@ def warning(indent, message):
     """ Method to print a warning message
 
     """
-    print "%sWarning: %s" % (indent, message)
+    print(f"{indent}Warning: {message}")
 
 def error(indent, message):
     """ Method to print an error
 
     """
-    print "%sError: %s" % (indent, message)
+    print(f"{indent}Error: {message}")
 
 ###########################################################################
 def check_globals(config, indent=''):
     """ Check global settings """
 
-    print "%sChecking globals..." % (indent)
+    print(f"{indent}Checking globals...")
 
     # initialize counters
     cnts = [0] * NUMCNTS
@@ -57,10 +56,10 @@ def check_globals(config, indent=''):
                 'create_junk_tarball', 'campaign']:
         try:
             if key not in config:
-                error(indent+'    ', "missing %s global key or section" % (key))
+                error(indent + '    ', f"missing {key} global key or section")
                 cnts[ERRCNT_POS] += 1
         except:
-            error(indent+'    ', "missing %s global key or section" % (key))
+            error(indent + '    ', f"missing {key} global key or section")
             cnts[ERRCNT_POS] += 1
 
 
@@ -68,12 +67,10 @@ def check_globals(config, indent=''):
         if key in config:
             if miscutils.convertBool(config.getfull(key)):
                 if 'submit_des_db_section' not in config:
-                    error(indent+'    ', "using DB (%s), but missing submit_des_db_section" % \
-                              (key))
+                    error(indent + '    ', f"using DB ({key}), but missing submit_des_db_section")
                     cnts[ERRCNT_POS] += 1
                 if 'submit_des_services' not in config:
-                    error(indent+'    ', "using DB (%s), but missing submit_des_services" % \
-                              (key))
+                    error(indent + '    ', f"using DB ({key}), but missing submit_des_services")
                     cnts[ERRCNT_POS] += 1
 
 
@@ -82,18 +79,17 @@ def check_globals(config, indent=''):
         miscutils.convertBool(config.getfull(pfwdefs.PF_USE_QCF)) and
         (pfwdefs.PF_USE_DB_OUT in config and
          not miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)))):
-        error(indent+'    ', "if %s is true, %s must also be set to true" % \
-              (pfwdefs.PF_USE_QCF, pfwdefs.PF_USE_DB_OUT))
+        error(indent + '    ', f"if {pfwdefs.PF_USE_QCF} is true, {pfwdefs.PF_USE_DB_OUT} must also be set to true")
         cnts[ERRCNT_POS] += 1
 
     if 'operator' not in config:
-        error(indent+'    ', 'Must specify operator')
+        error(indent + '    ', 'Must specify operator')
         cnts[ERRCNT_POS] += 1
     elif config.getfull('operator') in ['bcs']:
-        error(indent+'    ', 'Operator cannot be shared login (%s).' % (config.getfull('operator')))
+        error(indent + '    ', f"Operator cannot be shared login ({config.getfull('operator')}).")
         cnts[ERRCNT_POS] += 1
 
-    print '%s    Checking %s...' % (indent, pfwdefs.SW_SAVE_RUN_VALS)
+    print(f"{indent}    Checking {pfwdefs.SW_SAVE_RUN_VALS}...")
     if pfwdefs.SW_SAVE_RUN_VALS in config:
         keys2save = config.getfull(pfwdefs.SW_SAVE_RUN_VALS)
         keys = miscutils.fwsplit(keys2save, ',')
@@ -105,16 +101,14 @@ def check_globals(config, indent=''):
                 pass
 
             if not exists:
-                error(indent + '        ', 'Cannot determine %s value (%s).' % \
-                      (pfwdefs.SW_SAVE_RUN_VALS, key))
+                error(indent + '        ', f"Cannot determine {pfwdefs.SW_SAVE_RUN_VALS} value ({key}).")
                 cnts[ERRCNT_POS] += 1
 
 
     blocklist = miscutils.fwsplit(config[pfwdefs.SW_BLOCKLIST].lower(), ',')
     for blockname in blocklist:
         if blockname not in config[pfwdefs.SW_BLOCKSECT]:
-            error(indent+'    ', ' Invalid %s, bad block name (%s)' % \
-                  (pfwdefs.SW_BLOCKLIST, blockname))
+            error(indent + '    ', f" Invalid {pfwdefs.SW_BLOCKLIST}, bad block name ({blockname})")
             cnts[ERRCNT_POS] += 1
 
     return cnts
@@ -129,23 +123,20 @@ def check_block(config, indent=''):
 
     blocklist = miscutils.fwsplit(config[pfwdefs.SW_BLOCKLIST].lower(), ',')
     for blockname in blocklist:
-        print "%sChecking block %s..." % (indent, blockname)
+        print(f"{indent}Checking block {blockname}...")
         config.set_block_info()
 
         for key in [pfwdefs.PF_USE_DB_IN, pfwdefs.PF_USE_DB_OUT]:
             if key in config and miscutils.convertBool(config.getfull(key)):
-                (found, val) = config.search('target_des_db_section')
+                (found, _) = config.search('target_des_db_section')
                 if not found:
-                    error(indent+'    ', "using DB (%s), but missing target_des_db_section" % \
-                              (key))
+                    error(indent + '    ', f"using DB ({key}), but missing target_des_db_section")
                     cnts[ERRCNT_POS] += 1
 
-                (found, val) = config.search('target_des_services')
+                (found, _) = config.search('target_des_services')
                 if not found:
-                    error(indent+'    ', "using DB (%s), but missing target_des_services" % \
-                              (key))
+                    error(indent + '    ', f"using DB ({key}), but missing target_des_services")
                     cnts[ERRCNT_POS] += 1
-
 
         # check modules
         block = config[pfwdefs.SW_BLOCKSECT][blockname]
@@ -154,15 +145,15 @@ def check_block(config, indent=''):
 
             for modname in modulelist:
                 if modname not in config[pfwdefs.SW_MODULESECT]:
-                    error(indent+'    ', "block %s - invalid %s" % (blockname, pfwdefs.SW_MODULELIST))
-                    print "%s        (bad module name: %s, list: %s)" % (indent, modname, modulelist)
+                    error(indent + '    ', f"block {blockname} - invalid {pfwdefs.SW_MODULELIST}")
+                    print(f"{indent}        (bad module name: {modname}, list: {modulelist})")
                     cnts[ERRCNT_POS] += 1
                 else:
-                    cnts2 = check_module(config, blockname, modname, indent+'    ')
+                    cnts2 = check_module(config, blockname, modname, indent + '    ')
                     cnts = [x + y for x, y in zip(cnts, cnts2)] # increment counts
 
         else:
-            error(indent+'    ', "block %s - missing %s value" % (blockname, pfwdefs.SW_MODULESECT))
+            error(indent + '    ', f"block {blockname} - missing {pfwdefs.SW_MODULESECT} value")
             cnts[ERRCNT_POS] += 1
 
         config.inc_blknum()
@@ -179,7 +170,7 @@ def check_target_archive(config, indent=''):
 
     cnts = [0] * NUMCNTS
 
-    print "%sChecking target archive..." % (indent)
+    print(f"{indent}Checking target archive...")
     blocklist = miscutils.fwsplit(config[pfwdefs.SW_BLOCKLIST].lower(), ',')
     for blockname in blocklist:
         config.set_block_info()
@@ -187,33 +178,33 @@ def check_target_archive(config, indent=''):
         (found_input, use_target_archive_input) = config.search(pfwdefs.USE_TARGET_ARCHIVE_INPUT,
                                                                 {pfwdefs.PF_CURRVALS: {'curr_block': blockname}})
         (found_output, use_target_archive_output) = config.search(pfwdefs.USE_TARGET_ARCHIVE_OUTPUT, {pfwdefs.PF_CURRVALS: {'curr_block': blockname}})
-        (found_archive, target_archive) = config.search(pfwdefs.TARGET_ARCHIVE, {pfwdefs.PF_CURRVALS: {'curr_block': blockname}})
+        (found_archive, _) = config.search(pfwdefs.TARGET_ARCHIVE, {pfwdefs.PF_CURRVALS: {'curr_block': blockname}})
 
         if not found_input:
-            error(indent+'    ', "block %s - Could not determine %s" % (blockname, pfwdefs.USE_TARGET_ARCHIVE_INPUT))
+            error(indent + '    ', f"block {blockname} - Could not determine {pfwdefs.USE_TARGET_ARCHIVE_INPUT}")
             cnts[ERRCNT_POS] += 1
         elif use_target_archive_input.lower() not in pfwdefs.VALID_TARGET_ARCHIVE_INPUT:
-            error(indent+'    ', "block %s - Invalid %s value" % (blockname, pfwdefs.USE_TARGET_ARCHIVE_INPUT))
+            error(indent + '    ', f"block {blockname} - Invalid {pfwdefs.USE_TARGET_ARCHIVE_INPUT} value")
             cnts[ERRCNT_POS] += 1
 
         if not found_output:
-            error(indent+'    ', "block %s - Could not determine %s" % (blockname, pfwdefs.USE_TARGET_ARCHIVE_OUTPUT))
+            error(indent + '    ', f"block {blockname} - Could not determine {pfwdefs.USE_TARGET_ARCHIVE_OUTPUT}")
             cnts[ERRCNT_POS] += 1
         elif use_target_archive_output.lower() not in pfwdefs.VALID_TARGET_ARCHIVE_OUTPUT:
-            error(indent+'    ', "block %s - Invalid %s value" % (blockname, pfwdefs.USE_TARGET_ARCHIVE_OUTPUT))
+            error(indent + '    ', f"block {blockname} - Invalid {pfwdefs.USE_TARGET_ARCHIVE_OUTPUT} value")
             cnts[ERRCNT_POS] += 1
 
         # if need to use a target_archive for this block
-        if ((found_input and use_target_archive_input.lower() != 'never') or
-            (found_output and use_target_archive_output.lower() != 'never')):
+        if (found_input and use_target_archive_input.lower() != 'never') or \
+           (found_output and use_target_archive_output.lower() != 'never'):
             if not found_archive:
-                error(indent+'    ', "block %s - Missing %s value" % (blockname, pfwdefs.TARGET_ARCHIVE))
+                error(indent + '    ', f"block {blockname} - Missing {pfwdefs.TARGET_ARCHIVE} value")
                 cnts[ERRCNT_POS] += 1
             elif pfwdefs.SW_ARCHIVESECT not in config:
-                error(indent+'    ', "block %s - Needs archive section which doesn't exist" % (blockname))
+                error(indent + '    ', f"block {blockname} - Needs archive section which doesn't exist")
                 cnts[ERRCNT_POS] += 1
             elif pfwdefs.TARGET_ARCHIVE not in config[pfwdefs.SW_ARCHIVESECT]:
-                error(indent+'    ', "block %s - Invalid %s value" % (blockname, pfwdefs.TARGET_ARCHIVE))
+                error(indent + '    ', f"block {blockname} - Invalid {pfwdefs.TARGET_ARCHIVE} value")
                 cnts[ERRCNT_POS] += 1
             else:
                 # check that we have all archive req values exist
@@ -233,7 +224,7 @@ def check_home_archive(config, indent=''):
 
     cnts = [0] * NUMCNTS
 
-    print "%sChecking home archive..." % (indent)
+    print(f"{indent}Checking home archive...")
     blocklist = miscutils.fwsplit(config[pfwdefs.SW_BLOCKLIST].lower(), ',')
     for blockname in blocklist:
         config.set_block_info()
@@ -243,30 +234,30 @@ def check_home_archive(config, indent=''):
         (found_archive, home_archive) = config.search(pfwdefs.HOME_ARCHIVE, {pfwdefs.PF_CURRVALS: {'curr_block': blockname}})
 
         if not found_input:
-            error(indent+'    ', "block %s - Could not determine %s" % (blockname, pfwdefs.USE_HOME_ARCHIVE_INPUT))
+            error(indent + '    ', f"block {blockname} - Could not determine {pfwdefs.USE_HOME_ARCHIVE_INPUT}")
             cnts[ERRCNT_POS] += 1
         elif use_home_archive_input.lower() not in pfwdefs.VALID_HOME_ARCHIVE_INPUT:
-            error(indent+'    ', "block %s - Invalid %s value" % (blockname, pfwdefs.USE_HOME_ARCHIVE_INPUT))
+            error(indent + '    ', f"block {blockname} - Invalid {pfwdefs.USE_HOME_ARCHIVE_INPUT} value")
             cnts[ERRCNT_POS] += 1
 
         if not found_output:
-            error(indent+'    ', "block %s - Could not determine %s" % (blockname, pfwdefs.USE_HOME_ARCHIVE_OUTPUT))
+            error(indent + '    ', f"block {blockname} - Could not determine {pfwdefs.USE_HOME_ARCHIVE_OUTPUT}")
             cnts[ERRCNT_POS] += 1
         elif use_home_archive_output.lower() not in pfwdefs.VALID_HOME_ARCHIVE_OUTPUT:
-            error(indent+'    ', "block %s - Invalid %s value" % (blockname, pfwdefs.USE_HOME_ARCHIVE_OUTPUT))
+            error(indent + '    ', f"block {blockname} - Invalid {pfwdefs.USE_HOME_ARCHIVE_OUTPUT} value")
             cnts[ERRCNT_POS] += 1
 
         # if need to use a home_archive for this block
         if ((found_input and use_home_archive_input.lower() != 'never') or
             (found_output and use_home_archive_output.lower() != 'never')):
             if not found_archive:
-                error(indent+'    ', "block %s - Missing %s value" % (blockname, pfwdefs.HOME_ARCHIVE))
+                error(indent + '    ', f"block {blockname} - Missing {pfwdefs.HOME_ARCHIVE} value")
                 cnts[ERRCNT_POS] += 1
             elif pfwdefs.SW_ARCHIVESECT not in config:
-                error(indent+'    ', "block %s - Needs archive section which doesn't exist" % (blockname))
+                error(indent + '    ', f"block {blockname} - Needs archive section which doesn't exist")
                 cnts[ERRCNT_POS] += 1
             elif home_archive not in config[pfwdefs.SW_ARCHIVESECT]:
-                error(indent+'    ', "block %s - Invalid %s value" % (blockname, pfwdefs.HOME_ARCHIVE))
+                error(indent + '    ', f"block {blockname} - Invalid {pfwdefs.HOME_ARCHIVE} value")
                 cnts[ERRCNT_POS] += 1
             else:
                 # check that we have all archive req values exist
@@ -285,31 +276,30 @@ def check_module(config, blockname, modname, indent=''):
 
     cnts = [0] * NUMCNTS
 
-    print "%sChecking module %s..." % (indent, modname)
+    print(f"{indent}Checking module {modname}...")
     moddict = config[pfwdefs.SW_MODULESECT][modname]
     dataobjs = {pfwdefs.SW_INPUTS: {}, pfwdefs.SW_OUTPUTS: {}}
 
     # check that have wrappername (required)
     if pfwdefs.SW_WRAPPERNAME not in moddict and \
             not miscutils.convertBool(moddict[pfwdefs.PF_NOOP]):
-        error(indent+'    ', "block %s, module %s - missing %s value" % (blockname, modname, pfwdefs.SW_WRAPPERNAME))
+        error(indent + '    ', f"block {blockname}, module {modname} - missing {pfwdefs.SW_WRAPPERNAME} value")
         cnts[ERRCNT_POS] += 1
 
     # check that have at least 1 exec section (required)
     execsects = intgmisc.get_exec_sections(moddict, pfwdefs.SW_EXECPREFIX)
-    if len(execsects) == 0 and \
-            not miscutils.convertBool(moddict[pfwdefs.PF_NOOP]):
-        error(indent+'    ', "block %s, module %s - 0 exec sections (%s*)" % (blockname, modname, pfwdefs.SW_EXECPREFIX))
+    if not execsects and not miscutils.convertBool(moddict[pfwdefs.PF_NOOP]):
+        error(indent + '    ', f"block {blockname}, module {modname} - 0 exec sections ({pfwdefs.SW_EXECPREFIX}*)")
         cnts[ERRCNT_POS] += 1
     else:
         # check exec sections
         for xsectname in execsects:
             xsectdict = moddict[xsectname]
-            cnts2 = check_exec(config, blockname, modname, dataobjs, xsectname, xsectdict, indent+"    ")
+            cnts2 = check_exec(config, blockname, modname, dataobjs, xsectname, xsectdict, indent + "    ")
             cnts = [x + y for x, y in zip(cnts, cnts2)] # increment counts
 
     # check file/list sections
-    cnts2 = check_dataobjs(config, blockname, modname, moddict, dataobjs, indent+"    ")
+    cnts2 = check_dataobjs(config, blockname, modname, moddict, dataobjs, indent + "    ")
     cnts = [x + y for x, y in zip(cnts, cnts2)] # increment counts
 
     return cnts
@@ -331,7 +321,7 @@ def parse_wcl_objname(objname):
     elif len(parts) == 1:
         name = parts[0]
     else:
-        error('', "cannot parse objname %s (too many sections/periods)" % (objname))
+        error('', f"cannot parse objname {objname} (too many sections/periods)")
 
     return sect, name, subname
 
@@ -343,10 +333,10 @@ def check_filepat_valid(config, filepat, blockname, modname, objname, objdict, i
     cnts = [0] * NUMCNTS
 
     if pfwdefs.SW_FILEPATSECT not in config:
-        error(indent, "Missing filename pattern definition section (%s)" % (pfwdefs.SW_FILEPATSECT))
+        error(indent, f"Missing filename pattern definition section ({pfwdefs.SW_FILEPATSECT})")
         cnts[ERRCNT_POS] += 1
     elif filepat not in config[pfwdefs.SW_FILEPATSECT]:
-        error(indent, "block %s, module %s, %s - Missing definition for %s '%s'" % (blockname, modname, objname, pfwdefs.SW_FILEPAT, filepat))
+        error(indent, f"block {blockname}, module {modname}, {objname} - Missing definition for {pfwdefs.SW_FILEPAT} '{filepat}'")
         cnts[ERRCNT_POS] += 1
 
     # todo: if pattern, check that all needed values exist
@@ -362,23 +352,23 @@ def check_file_valid_input(config, blockname, modname, fname, fdict, indent=''):
 
     # check that any given filename pattern has a definition
     if pfwdefs.SW_FILEPAT in fdict:
-        cnts2 = check_filepat_valid(config, fdict[pfwdefs.SW_FILEPAT], blockname, modname, fname, fdict, indent+'    ')
+        cnts2 = check_filepat_valid(config, fdict[pfwdefs.SW_FILEPAT], blockname, modname, fname, fdict, indent + '    ')
         cnts = [x + y for x, y in zip(cnts, cnts2)] # increment counts
 
     # check that it has filepat, filename, depends, or query wcl (required)
     # if filename is a pattern, can I check that all needed values exist?
     # todo check depends happens in same block previous to this module
     if (('listonly' not in fdict or not miscutils.convertBool(fdict['listonly'])) and
-           pfwdefs.SW_FILEPAT not in fdict and pfwdefs.FILENAME not in fdict and
-           'fullname' not in fdict and 'query_fields' not in fdict and
-           pfwdefs.DATA_DEPENDS not in fdict):
-        error(indent, "block %s, module %s, %s, %s - Missing terms needed to determine input filename" % (blockname, modname, pfwdefs.SW_INPUTS, fname))
+        pfwdefs.SW_FILEPAT not in fdict and pfwdefs.FILENAME not in fdict and
+        'fullname' not in fdict and 'query_fields' not in fdict and
+        pfwdefs.DATA_DEPENDS not in fdict):
+        error(indent, f"block {blockname}, module {modname}, {pfwdefs.SW_INPUTS}, {fname} - Missing terms needed to determine input filename")
         cnts[ERRCNT_POS] += 1
 
     # check that it has pfwdefs.DIRPAT :    err
     # can I check that all values for pfwdefs.DIRPAT exist?
     if pfwdefs.DIRPAT not in fdict:
-        error(indent, "block %s, module %s, %s, %s - Missing %s" % (blockname, modname, pfwdefs.SW_INPUTS, fname, pfwdefs.DIRPAT))
+        error(indent, f"block {blockname}, module {modname}, {pfwdefs.SW_INPUTS}, {fname} - Missing {pfwdefs.DIRPAT}")
         cnts[ERRCNT_POS] += 1
 
     return cnts
@@ -390,21 +380,21 @@ def check_list_valid_input(config, blockname, modname, objname, objdict, indent=
 
     cnts = [0] * NUMCNTS
 
-    (sect, name, subname) = parse_wcl_objname(objname)
+    (_, _, _) = parse_wcl_objname(objname)
 
     # how to name list
     if pfwdefs.SW_FILEPAT not in objdict and pfwdefs.FILENAME not in objdict:
-        error(indent, "block %s, module %s, %s, %s - Missing terms needed to determine list filename" % (blockname, modname, pfwdefs.SW_INPUTS, objname))
+        error(indent, f"block {blockname}, module {modname}, {pfwdefs.SW_INPUTS}, {objname} - Missing terms needed to determine list filename")
         cnts[ERRCNT_POS] += 1
 
     # directory location for list
     if pfwdefs.DIRPAT not in objdict:
-        error(indent, "block %s, module %s, %s, %s - Missing %s" % (blockname, modname, pfwdefs.SW_INPUTS, objname, pfwdefs.DIRPAT))
+        error(indent, f"block {blockname}, module {modname}, {pfwdefs.SW_INPUTS}, {objname} - Missing {pfwdefs.DIRPAT}")
         cnts[ERRCNT_POS] += 1
 
     # what goes into the list
     if pfwdefs.DIV_LIST_BY_COL not in objdict and 'columns' not in objdict:
-        error(indent, "block %s, module %s, %s, %s - Missing terms needed to determine column(s) in list(s) (%s or %s)" % (blockname, modname, pfwdefs.SW_INPUTS, objname, pfwdefs.DIV_LIST_BY_COL, 'columns'))
+        error(indent, f"block {blockname}, module {modname}, {pfwdefs.SW_INPUTS}, {objname} - Missing terms needed to determine column(s) in list(s) ({pfwdefs.DIV_LIST_BY_COL} or {'columns'})")
         cnts[ERRCNT_POS] += 1
 
     return cnts
@@ -418,7 +408,7 @@ def check_exec_inputs(config, blockname, modname, dataobjs, xsectname, xsectdict
     moddict = config[pfwdefs.SW_MODULESECT][modname]
 
     if pfwdefs.SW_INPUTS in xsectdict:
-        print "%sChecking %s %s..." % (indent, xsectname, pfwdefs.SW_INPUTS)
+        print(f"{indent}Checking {xsectname} {pfwdefs.SW_INPUTS}...")
         indent += '    '
         #print "%sxsectdict[pfwdefs.SW_INPUTS] = %s" % (indent, xsectdict[pfwdefs.SW_INPUTS])
         # for each entry in inputs
@@ -428,7 +418,7 @@ def check_exec_inputs(config, blockname, modname, dataobjs, xsectname, xsectdict
             (sect, name, subname) = parse_wcl_objname(objname)
 
             if sect is None:
-                error(indent+'    ', "block %s, module %s, %s, %s - Invalid entry (%s).  Missing section label" % (blockname, modname, xsectname, pfwdefs.SW_INPUTS, objname))
+                error(indent + '    ', f"block {blockname}, module {modname}, {xsectname}, {pfwdefs.SW_INPUTS} - Invalid entry ({objname}).  Missing section label")
                 cnts[ERRCNT_POS] += 1
             else:
                 # check that appears in [file/list]sect : error
@@ -451,25 +441,25 @@ def check_exec_inputs(config, blockname, modname, dataobjs, xsectname, xsectdict
 
                     if not found:
                         bad = True
-                        error(indent+'    ', " block %s, module %s, %s, %s - Invalid entry (%s).  Cannot find definition." % (blockname, modname, xsectname, pfwdefs.SW_INPUTS, objname))
+                        error(indent + '    ', f"block {blockname}, module {modname}, {xsectname}, {pfwdefs.SW_INPUTS} - Invalid entry ({objname}).  Cannot find definition.")
                         cnts[ERRCNT_POS] += 1
 
                 if not bad:
                     if subname is None:  # file
                         dataobjs[pfwdefs.SW_INPUTS][objname] = True
                     elif sect != pfwdefs.SW_LISTSECT:   # only lists can have subname
-                        error(indent+'    ', "block %s, module %s, %s, %s, %s - Too many sections/periods for a %s." % (blockname, modname, xsectname, pfwdefs.SW_INPUTS, objname, sect))
+                        error(indent + '    ', f"block {blockname}, module {modname}, {xsectname}, {pfwdefs.SW_INPUTS}, {objname} - Too many sections/periods for a {sect}.")
                         cnts[ERRCNT_POS] += 1
                     elif subname not in moddict[pfwdefs.SW_FILESECT]:
-                        error(indent+'    ', "block %s, module %s, %s, %s, %s - Cannot find definition for %s" % (blockname, modname, xsectname, pfwdefs.SW_INPUTS, objname, subname))
+                        error(indent + '    ', f"block {blockname}, module {modname}, {xsectname}, {pfwdefs.SW_INPUTS}, {objname} - Cannot find definition for {subname}")
                         cnts[ERRCNT_POS] += 1
                     else:
-                        dataobjs[pfwdefs.SW_INPUTS]["%s.%s" % (pfwdefs.SW_LISTSECT, name)] = True
-                        dataobjs[pfwdefs.SW_INPUTS]["%s.%s" % (pfwdefs.SW_FILESECT, subname)] = True
+                        dataobjs[pfwdefs.SW_INPUTS][f"{pfwdefs.SW_LISTSECT}.{name}"] = True
+                        dataobjs[pfwdefs.SW_INPUTS][f"{pfwdefs.SW_FILESECT}.{subname}"] = True
                         dataobjs[pfwdefs.SW_INPUTS][objname] = True
                         fdict = moddict[pfwdefs.SW_FILESECT][subname]
                         if ('listonly' not in fdict or not miscutils.convertBool(fdict['listonly'])):
-                            warning(indent,"block %s, module %s, %s, %s, %s - File in list does not have listonly=True" % (blockname, modname, xsectname, pfwdefs.SW_INPUTS, objname))
+                            warning(indent, f"block {blockname}, module {modname}, {xsectname}, {pfwdefs.SW_INPUTS}, {objname} - File in list does not have listonly=True")
                             cnts[WARNCNT_POS] += 1
 
     return cnts
@@ -480,15 +470,13 @@ def check_file_valid_output(config, blockname, modname, fname, fdict, indent='')
     """ Check if output file definition is valid """
 
     cnts = [0] * NUMCNTS
-    moddict = config[pfwdefs.SW_MODULESECT][modname]
 
-    msginfo = "block %s, module %s, %s, %s" % \
-              (blockname, modname, pfwdefs.SW_OUTPUTS, fname)
+    msginfo = f"block {blockname}, module {modname}, {pfwdefs.SW_OUTPUTS} {fname}"
 
     # check that it has pfwdefs.DIRPAT :    err
     # can I check that all values for pfwdefs.DIRPAT exist?
     if pfwdefs.DIRPAT not in fdict:
-        error(indent, "%s - Missing %s" % (msginfo, pfwdefs.DIRPAT))
+        error(indent, f"{msginfo} - Missing {pfwdefs.DIRPAT}")
         cnts[ERRCNT_POS] += 1
     else:
         # todo: check that all values for pfwdefs.DIRPAT exist
@@ -498,8 +486,7 @@ def check_file_valid_output(config, blockname, modname, fname, fdict, indent='')
     if pfwdefs.SW_FILEPAT not in fdict and \
        pfwdefs.FILENAME not in fdict and \
        'fullname' not in fdict:
-        error(indent, "%s - Missing terms needed to determine output filename" % \
-              (msginfo))
+        error(indent, f"{msginfo} - Missing terms needed to determine output filename")
         cnts[ERRCNT_POS] += 1
     else:
 
@@ -511,11 +498,10 @@ def check_file_valid_output(config, blockname, modname, fname, fdict, indent='')
 
     # check that it has filetype :    err
     if pfwdefs.FILETYPE not in fdict:
-        error(indent, "%s - Missing %s" % (msginfo, pfwdefs.FILETYPE))
+        error(indent, f"{msginfo} - Missing {pfwdefs.FILETYPE}")
         cnts[ERRCNT_POS] += 1
     elif fdict[pfwdefs.FILETYPE] not in config[fmdefs.FILETYPE_METADATA]:
-        error(indent, "%s - Invalid %s (%s)" % \
-              (msginfo, pfwdefs.FILETYPE, fdict[pfwdefs.FILETYPE]))
+        error(indent, f"{msginfo} - Invalid {pfwdefs.FILETYPE} ({fdict[pfwdefs.FILETYPE]})")
         cnts[ERRCNT_POS] += 1
 
     return cnts
@@ -532,22 +518,22 @@ def check_exec_outputs(config, blockname, modname, dataobjs, xsectname, xsectdic
 
     if pfwdefs.SW_OUTPUTS in xsectdict:
         # for each entry in inputs
-        print "%sChecking %s %s..." % (indent, xsectname, pfwdefs.SW_OUTPUTS)
+        print(f"{indent}Checking {xsectname}, {pfwdefs.SW_OUTPUTS}...")
         indent += '    '
         #print "%sxsectdict[pfwdefs.SW_OUTPUTS] = %s" % (indent, xsectdict[pfwdefs.SW_OUTPUTS])
         for objname in miscutils.fwsplit(xsectdict[pfwdefs.SW_OUTPUTS], ','):
             objname = objname.lower()
             #print '%sobjname=%s' % (indent, objname)
 
-            (sect, name, subname) = parse_wcl_objname(objname)
+            (sect, name, _) = parse_wcl_objname(objname)
             #print '%s(sect, name, subname) = (%s, %s, %s)' % (indent, sect, name, subname)
             if sect is None:
-                error(indent+'    ', "block %s, module %s, %s, %s - Invalid entry (%s).  Missing section label" % (blockname, modname, xsectname, pfwdefs.SW_OUTPUTS, objname))
+                error(indent + '    ', f"block {blockname}, module {modname}, {xsectname}, {pfwdefs.SW_OUTPUTS} - Invalid entry {objname}.  Missing section label")
                 cnts[ERRCNT_POS] += 1
             else:
                 # check that appears in [file/list]sect : err
                 if sect not in moddict or name not in moddict[sect]:
-                    error(indent+'    ', " block %s, module %s, %s, %s - Invalid entry (%s).  Cannot find definition." % (blockname, modname, xsectname, pfwdefs.SW_OUTPUTS, objname))
+                    error(indent + '    ', f"block {blockname}, module {modname}, {xsectname}, {pfwdefs.SW_OUTPUTS} - Invalid entry {objname}.  Cannot find definition.")
                     cnts[ERRCNT_POS] += 1
                 else:
                     dataobjs[pfwdefs.SW_OUTPUTS][objname] = True
@@ -564,47 +550,40 @@ def check_exec_parentchild(config, blockname, modname, dataobjs, xsectname, xsec
 
     cnts = [0] * NUMCNTS
     if pfwdefs.SW_PARENTCHILD in xsectdict:
-        print "%sChecking %s %s..." % (indent, xsectname, pfwdefs.SW_PARENTCHILD)
+        print(f"{indent}Checking {xsectname} {pfwdefs.SW_PARENTCHILD}...")
         indent += '    '
         #print "%sxsectdict[pfwdefs.SW_PARENTCHILD] = %s" % (indent, xsectdict[pfwdefs.SW_PARENTCHILD])
         #print "%sdataobjs[pfwdefs.SW_INPUTS] = %s" % (indent, dataobjs[pfwdefs.SW_INPUTS])
         #print "%sdataobjs[pfwdefs.SW_OUTPUTS] = %s" % (indent, dataobjs[pfwdefs.SW_OUTPUTS])
         #print "%sfsplit = %s" % (indent, miscutils.fwsplit(xsectdict[pfwdefs.SW_PARENTCHILD], ',') )
 
-        msginfo = "block %s, module %s, %s, %s" % \
-                  (blockname, modname, xsectname, pfwdefs.SW_PARENTCHILD)
+        msginfo = f"block {blockname}, module {modname}, {xsectname}, {pfwdefs.SW_PARENTCHILD}"
         for pair in miscutils.fwsplit(xsectdict[pfwdefs.SW_PARENTCHILD], ','):
             pair = pair.lower()
             if ':' in pair:
                 (parent, child) = miscutils.fwsplit(pair, ':')
                 if '.' in parent:
                     if parent not in dataobjs[pfwdefs.SW_INPUTS]:
-                        error(indent, "%s - parent %s not listed in %s" % \
-                              (msginfo, parent, pfwdefs.SW_INPUTS))
+                        error(indent, f"{msginfo} - parent {parent} not listed in {pfwdefs.SW_INPUTS}")
                         cnts[ERRCNT_POS] += 1
                 else:
-                    error(indent, "%s - parent %s missing section label" % \
-                          (msginfo, parent))
+                    error(indent, f"{msginfo} - parent {parent} missing section label")
+
                     cnts[ERRCNT_POS] += 1
 
                 if '.' in child:
                     if child not in dataobjs[pfwdefs.SW_OUTPUTS]:
-                        error(indent, "%s - child %s not listed in %s" % \
-                              (msginfo, child, pfwdefs.SW_OUTPUTS))
+                        error(indent, f"{msginfo} - child {child} not listed in {pfwdefs.SW_OUTPUTS}")
                         cnts[ERRCNT_POS] += 1
                 else:
-                    error(indent, "%s - child %s missing section label" % \
-                          (msginfo, child))
+                    error(indent, f"{msginfo} - child {child} missing section label")
                     cnts[ERRCNT_POS] += 1
             else:
-                error(indent, "%s - Invalid parent/child pair (%s).  Missing colon." % \
-                      (msginfo, pair))
+                error(indent, f"{msginfo} - Invalid parent/child pair ({pair}).  Missing colon.")
                 cnts[ERRCNT_POS] += 1
     elif pfwdefs.SW_INPUTS in xsectdict and pfwdefs.SW_OUTPUTS in xsectdict:
-        msginfo = "block %s, module %s, %s" % \
-                  (blockname, modname, xsectname)
-        warning(indent, "%s - has %s and %s, but not %s" % \
-              (msginfo, pfwdefs.SW_INPUTS, pfwdefs.SW_OUTPUTS, pfwdefs.SW_PARENTCHILD))
+        msginfo = f"block {blockname}, module {modname}, {xsectname}"
+        warning(indent, f"{msginfo} - has {pfwdefs.SW_INPUTS} and {pfwdefs.SW_OUTPUTS}, but not {pfwdefs.SW_PARENTCHILD}")
         cnts[WARNCNT_POS] += 1
 
     return cnts
@@ -619,59 +598,57 @@ def check_dataobjs(config, blockname, modname, moddict, dataobjs, indent=''):
 
     # check every file
     if pfwdefs.SW_FILESECT in moddict:
-        print "%sChecking %s section..." % (indent, pfwdefs.SW_FILESECT)
+        print(f"{indent}Checking {pfwdefs.SW_FILESECT} section...")
         for fname, fdict in moddict[pfwdefs.SW_FILESECT].items():
-            key = '%s.%s' % (pfwdefs.SW_FILESECT, fname)
+            key = f"{pfwdefs.SW_FILESECT}.{fname}"
             if key not in dataobjs[pfwdefs.SW_INPUTS] and \
                key not in dataobjs[pfwdefs.SW_OUTPUTS] and \
                ('listonly' not in fdict or not miscutils.convertBool(fdict['listonly'])):
-                warning(indent + '    ', "%s.%s does not appear in provenance lines" % \
-                      (pfwdefs.SW_FILESECT, fname))
+                warning(indent + '    ', f"{pfwdefs.SW_FILESECT}.{fname} does not appear in provenance lines")
                 cnts[WARNCNT_POS] += 1
 
             if key in dataobjs[pfwdefs.SW_INPUTS]:
                 cnts2 = check_file_valid_input(config, blockname, modname,
-                                               fname, fdict, indent+'    ')
+                                               fname, fdict, indent + '    ')
                 cnts = [x + y for x, y in zip(cnts, cnts2)] # increment counts
 
 
             if key in dataobjs[pfwdefs.SW_OUTPUTS]:
                 cnts2 = check_file_valid_output(config, blockname, modname,
-                                                fname, fdict, indent+'    ')
+                                                fname, fdict, indent + '    ')
                 cnts = [x + y for x, y in zip(cnts, cnts2)] # increment counts
 
 
     # check every list
     if pfwdefs.SW_LISTSECT in moddict:
-        print "%sChecking %s section..." % (indent, pfwdefs.SW_LISTSECT)
+        print(f"{indent}Checking {pfwdefs.SW_LISTSECT} section...")
         for lname, ldict in moddict[pfwdefs.SW_LISTSECT].items():
-            key = '%s.%s' % (pfwdefs.SW_LISTSECT, lname)
+            key = f"{pfwdefs.SW_LISTSECT}.{lname}"
             if key not in dataobjs[pfwdefs.SW_INPUTS] and \
                key not in dataobjs[pfwdefs.SW_OUTPUTS]:
                 found = False
                 if 'columns' in ldict:
                     for col in ldict['columns'].split(','):
                         nkey = key + "." + col
-                        nkey = nkey.replace('.fullname','')
+                        nkey = nkey.replace('.fullname', '')
                         if nkey in dataobjs[pfwdefs.SW_INPUTS] or \
                            nkey in dataobjs[pfwdefs.SW_OUTPUTS]:
                             found = True
                         # check to see if list def has file name
                         if not found:
                             nkey = col
-                            nkey = 'file.' + nkey.replace('.fullname','')
+                            nkey = 'file.' + nkey.replace('.fullname', '')
                             if nkey in dataobjs[pfwdefs.SW_INPUTS] or \
                                nkey in dataobjs[pfwdefs.SW_OUTPUTS]:
                                 found = True
 
                 if not found:
-                    warning(indent+'    ',"%s.%s does not appear in provenance lines" % \
-                                (pfwdefs.SW_LISTSECT, lname))
+                    warning(indent + '    ', f"{pfwdefs.SW_LISTSECT}.{lname} does not appear in provenance lines")
                     cnts[WARNCNT_POS] += 1
 
             if key in dataobjs[pfwdefs.SW_INPUTS]:
                 cnts2 = check_list_valid_input(config, blockname, modname,
-                                               lname, ldict, indent+'    ')
+                                               lname, ldict, indent + '    ')
                 cnts = [x + y for x, y in zip(cnts, cnts2)] # increment counts
 
     return cnts
@@ -686,19 +663,15 @@ def check_exec_cmd(config, blockname, modname, dataobjs, xsectname, xsectdict, i
 
     # check that each exec section has execname (required)
     if pfwdefs.SW_EXECNAME not in xsectdict:
-        error(indent, "block %s, module %s, %s - missing %s" % \
-              (blockname, modname, xsectname, pfwdefs.SW_EXECNAME))
+        error(indent, f"block {blockname}, module {modname}, {xsectname} - missing {pfwdefs.SW_EXECNAME}")
         cnts[ERRCNT_POS] += 1
     elif '/' in xsectdict[pfwdefs.SW_EXECNAME]:
-        warning(indent, "block %s, module %s, %s - hardcoded path in %s (%s)" % \
-              (blockname, modname, xsectname,
-               pfwdefs.SW_EXECNAME, xsectdict[pfwdefs.SW_EXECNAME]))
+        warning(indent, f"block {blockname}, module {modname}, {xsectname} - hardcoded path in {pfwdefs.SW_EXECNAME} ({xsectdict[pfwdefs.SW_EXECNAME]})")
         cnts[WARNCNT_POS] += 1
 
     # almost all production cases would need to have command line arguments
     if pfwdefs.SW_CMDARGS not in xsectdict:
-        warning(indent, "block %s, module %s, %s - missing %s" % \
-              (blockname, modname, xsectname, pfwdefs.SW_CMDARGS))
+        warning(indent, f"block {blockname}, module {modname}, {xsectname} - missing {pfwdefs.SW_CMDARGS}")
         cnts[WARNCNT_POS] += 1
     else:
         moddict = config[pfwdefs.SW_MODULESECT][modname]
@@ -708,20 +681,18 @@ def check_exec_cmd(config, blockname, modname, dataobjs, xsectname, xsectdict, i
                 var2 = var[0:-(len('.fullname'))]
                 (sect, name, subname) = parse_wcl_objname(var2)
                 if sect not in moddict or name not in moddict[sect]:
-                    error(indent, "block %s, module %s, %s, %s - Undefined variable (%s)" % \
-                          (blockname, modname, xsectname, pfwdefs.SW_CMDARGS, var))
+                    error(indent, f"block {blockname}, module {modname}, {xsectname}, {pfwdefs.SW_CMDARGS} - Undefined variable ({var})")
                     cnts[ERRCNT_POS] += 1
 
                 if subname and subname not in moddict[pfwdefs.SW_FILESECT]:
-                    error(indent, "block %s, module %s, %s, %s - Undefined variable (%s)" % \
-                          (blockname, modname, xsectname, pfwdefs.SW_CMDARGS, var))
+                    error(indent, f"block {blockname}, module {modname}, {xsectname}, {pfwdefs.SW_CMDARGS} - Undefined variable ({var})")
                     cnts[ERRCNT_POS] += 1
             else:
                 curvals = {'curr_block': blockname, 'curr_module': modname}
-                (found, val) = config.search(var, {pfwdefs.PF_CURRVALS: curvals,
-                                                   'searchobj': xsectdict,
-                                                   'required':False,
-                                                   intgdefs.REPLACE_VARS: True})
+                (_, _) = config.search(var, {pfwdefs.PF_CURRVALS: curvals,
+                                             'searchobj': xsectdict,
+                                             'required':False,
+                                             intgdefs.REPLACE_VARS: True})
 
         # check that all values in args exist?/
         # check for value names that look like file/list names but are missing file/list in front
@@ -736,10 +707,10 @@ def check_exec(config, blockname, modname, dataobjs, xsectname, xsectdict, inden
 
     cnts = [0] * NUMCNTS
 
-    print "%sChecking %s..." % (indent, xsectname)
+    print(f"{indent}Checking {xsectname}...")
     try:
         cnts2 = check_exec_inputs(config, blockname, modname, dataobjs,
-                                  xsectname, xsectdict, indent+'    ')
+                                  xsectname, xsectdict, indent + '    ')
         cnts = [x + y for x, y in zip(cnts, cnts2)] # increment counts
     except:
         cnts[0] += 1
@@ -749,7 +720,7 @@ def check_exec(config, blockname, modname, dataobjs, xsectname, xsectdict, inden
 
     try:
         cnts2 = check_exec_outputs(config, blockname, modname, dataobjs,
-                                   xsectname, xsectdict, indent+'    ')
+                                   xsectname, xsectdict, indent + '    ')
         cnts = [x + y for x, y in zip(cnts, cnts2)] # increment counts
     except:
         cnts[0] += 1
@@ -759,7 +730,7 @@ def check_exec(config, blockname, modname, dataobjs, xsectname, xsectdict, inden
 
     try:
         cnts2 = check_exec_parentchild(config, blockname, modname, dataobjs,
-                                       xsectname, xsectdict, indent+'    ')
+                                       xsectname, xsectdict, indent + '    ')
         cnts = [x + y for x, y in zip(cnts, cnts2)] # increment counts
     except:
         cnts[0] += 1
@@ -769,7 +740,7 @@ def check_exec(config, blockname, modname, dataobjs, xsectname, xsectdict, inden
 
     try:
         cnts2 = check_exec_cmd(config, blockname, modname, dataobjs,
-                               xsectname, xsectdict, indent+'    ')
+                               xsectname, xsectdict, indent + '    ')
         cnts = [x + y for x, y in zip(cnts, cnts2)] # increment counts
     except:
         cnts[0] += 1
@@ -778,9 +749,6 @@ def check_exec(config, blockname, modname, dataobjs, xsectname, xsectdict, inden
                                   limit=4)
 
     return cnts
-
-
-
 
 
 ###########################################################################
@@ -794,13 +762,13 @@ def check(config, indent=''):
     cnts2 = check_globals(config, indent)
     cnts = [x + y for x, y in zip(cnts, cnts2)] # increment counts
     if cnts[ERRCNT_POS] > 0:
-        print "%sAborting test" % (indent)
+        print(f"{indent}Aborting test")
         return cnts
 
     cnts2 = check_block(config, indent)
     cnts = [x + y for x, y in zip(cnts, cnts2)] # increment counts
     if cnts[ERRCNT_POS] > 0:
-        print "%sAborting test" % (indent)
+        print(f"{indent}Aborting test")
         return cnts
 
     cnts2 = check_target_archive(config, indent)
@@ -816,7 +784,3 @@ def check(config, indent=''):
     #    return cnts
 
     return cnts
-
-
-if __name__ == '__main__':
-    print "No main program.   Run descheck.py instead"
