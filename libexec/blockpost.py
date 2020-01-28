@@ -60,6 +60,9 @@ def print_qcf_messages(wrapdict, wrapmsg):
 ######################################################################
 def blockpost(argv=None):
     """ Program entry point """
+    realstdout = sys.stdout
+    realstderr = sys.stderr
+
     if argv is None:
         argv = sys.argv
 
@@ -473,19 +476,14 @@ def blockpost(argv=None):
     miscutils.fwdebug_print(f"Returning retval = {retval} ({type(retval)})")
     miscutils.fwdebug_print("END")
     debugfh.close()
-    return int(retval)
-
-if __name__ == "__main__":
-    realstdout = sys.stdout
-    realstderr = sys.stderr
-
-    exitcode = blockpost(sys.argv)
-
-    sys.stdout = realstdout
-    sys.stderr = realstderr
-
     if miscutils.fwdebug_check(3, 'PFWPOST_DEBUG'):
         miscutils.fwdebug_print(f"Exiting with = {exitcode}")
         miscutils.fwdebug_print(f"type of exitcode = {type(exitcode)}")
 
-    sys.exit(exitcode)
+    sys.stdout = realstdout
+    sys.stderr = realstderr
+
+    return int(retval)
+
+if __name__ == "__main__":
+    sys.exit(blockpost(sys.argv))

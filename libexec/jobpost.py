@@ -11,6 +11,7 @@ import re
 import os
 import tempfile
 import traceback
+import random
 from datetime import datetime
 
 import despymisc.miscutils as miscutils
@@ -29,7 +30,6 @@ def parse_job_output(config, jobnum, dbh=None, retval=None):
                                   {pfwdefs.PF_CURRVALS: {pfwdefs.PF_JOBNUM:jobnum,
                                                          'flabel': 'runjob',
                                                          'fsuffix':''}})
-
     tjobinfo = {}
     tjobinfo_task = {}
     for jobfile in [f"{jobbase}out", f"{jobbase}err"]:
@@ -120,8 +120,10 @@ def jobpost(argv=None):
     if argv is None:
         argv = sys.argv
 
-    debugfh = tempfile.NamedTemporaryFile(prefix='jobpost_', dir='.', delete=False)
-    tmpfn = debugfh.name
+    #debugfh = tempfile.NamedTemporaryFile(prefix='jobpost_', dir='.', delete=False)
+    tmpfn = os.path.join(os.getcwd(), f"jobpost_{random.randint(1,10000000):08d}.out")
+    debugfh = open(tmpfn, 'w')
+    #tmpfn = debugfh.name
     outorig = sys.stdout
     errorig = sys.stderr
     sys.stdout = debugfh
@@ -180,19 +182,22 @@ def jobpost(argv=None):
     os.chmod(tmpfn, 0o666)
     os.rename(tmpfn, new_log_name)
     dbh = None
+    miscutils.fwdebug_print("H1")
     if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
-        if config.dbh is None:
-            dbh = pfwdb.PFWDB(config.getfull('submit_des_services'),
-                              config.getfull('submit_des_db_section'))
-        else:
-            dbh = config.dbh
-
+        #if config.dbh is None:
+        dbh = pfwdb.PFWDB(config.getfull('submit_des_services'),
+                          config.getfull('submit_des_db_section'))
+        miscutils.fwdebug_print("GET DBH")
+        #else:
+        #    dbh = config.dbh
+        #    miscutils.fwdebug_print("HAVE DBH")
+    miscutils.fwdebug_print("H2")
     if 'use_qcf' in config and config['use_qcf']:
         debugfh = Messaging.Messaging(new_log_name, 'jobpre.py', config['pfw_attempt_id'], dbh=dbh, mode='a+', usedb=dbh is not None)
-
+        miscutils.fwdebug_print("USE QCF")
     else:
         debugfh = open(new_log_name, 'a+')
-
+        miscutils.fwdebug_print("NO QCF")
 
     sys.stdout = debugfh
     sys.stderr = debugfh
@@ -221,7 +226,7 @@ def jobpost(argv=None):
                 for ckey, dkey in condor2db.items():
                     if ckey in cjobinfo:
                         djobinfo[dkey] = cjobinfo[ckey]
-                print(djobinfo)
+                #print(djobinfo)
                 dbh.update_job_info(config, cjobinfo['jobname'], djobinfo)
 
                 if 'holdreason' in cjobinfo and cjobinfo['holdreason'] is not None:
@@ -246,7 +251,7 @@ def jobpost(argv=None):
                 traceback.print_exception(extype, exvalue, trback, file=sys.stdout)
         else:
             print("Warning:  no job condor log file")
-
+        print("HERE")
         if dbh:
             # update job task
             if 'status' not in tjobinfo_task:
@@ -254,9 +259,11 @@ def jobpost(argv=None):
             if 'end_time' not in tjobinfo_task:
                 tjobinfo_task['end_time'] = datetime.now()
             wherevals = {'id': config['task_id']['job'][jobnum]}
+            print(tjobinfo_task)
+            print(wherevals)
             dbh.basic_update_row('task', tjobinfo_task, wherevals)
             dbh.commit()
-
+        print("DONE")
 
     log_pfw_event(config, blockname, jobnum, 'j', ['posttask', retval])
 
@@ -277,18 +284,25 @@ def jobpost(argv=None):
             os.unlink(outputtar)
         else:
             msg = f"Warn: outputwcl tarball ({outputtar}) is 0 bytes."
-            print(msg)
+            miscutils.fwdebug_print(msg)
             if dbh:
-                Messaging.pfw_message(dbh, config['pfw_attempt_id'],
-                                      config['task_id']['job'][jobnum],
-                                      msg, pfwdefs.PFWDB_MSG_WARN, '')
+                try:
+                    Messaging.pfw_message(dbh, config['pfw_attempt_id'],
+                                          config['task_id']['job'][jobnum],
+                                          msg, pfwdefs.PFWDB_MSG_WARN, 'x')
+                except:
+                    miscutils.fwdebug_print("Warning: could not write to database")
+
     else:
         msg = f"Warn: outputwcl tarball ({outputtar}) does not exist."
-        print(msg)
+        miscutils.fwdebug_print(msg)
         if dbh:
-            Messaging.pfw_message(dbh, config['pfw_attempt_id'],
-                                  config['task_id']['job'][jobnum],
-                                  msg, pfwdefs.PFWDB_MSG_WARN, '')
+            try:
+                Messaging.pfw_message(dbh, config['pfw_attempt_id'],
+                                      config['task_id']['job'][jobnum],
+                                      msg, pfwdefs.PFWDB_MSG_WARN, 'x')
+            except:
+                miscutils.fwdebug_print("Warning: could not write to database")
 
     if retval != pfwdefs.PF_EXIT_SUCCESS:
         miscutils.fwdebug_print("Setting failure retval")
@@ -299,14 +313,14 @@ def jobpost(argv=None):
     debugfh.close()
     sys.stdout = outorig
     sys.stderr = errorig
+    miscutils.fwdebug_print(f"Exiting with = {retval}")
     return int(retval)
 
 
 if __name__ == "__main__":
-    realstdout = sys.stdout
-    realstderr = sys.stderr
-    exitcode = jobpost(sys.argv)
-    sys.stdout = realstdout
-    sys.stderr = realstderr
-    miscutils.fwdebug_print(f"Exiting with = {exitcode}")
-    sys.exit(exitcode)
+    #realstdout = sys.stdout
+    #realstderr = sys.stderr
+    #exitcode =
+    #sys.stdout = realstdout
+    #sys.stderr = realstderr
+    sys.exit(jobpost(sys.argv))

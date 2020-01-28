@@ -33,10 +33,10 @@ def logpre(argv=None):
         debugfh.close()
         return pfwdefs.PF_EXIT_FAILURE
 
-    configfile = sys.argv[1]
-    blockname = sys.argv[2]    # could also be uberctrl
-    subblocktype = sys.argv[3]
-    subblock = sys.argv[4]
+    configfile = argv[1]
+    blockname = argv[2]    # could also be uberctrl
+    subblocktype = argv[3]
+    subblock = argv[4]
 
     # read sysinfo file
     config = pfwconfig.PfwConfig({'wclfile': configfile})

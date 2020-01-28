@@ -109,13 +109,13 @@ def logpost(argv=None):
     debugfh.close()
     sys.stdout = outorig
     sys.stderr = errorig
+    miscutils.fwdebug_print(f"Exiting with = {retval}")
     return int(retval)
 
 if __name__ == "__main__":
-    realstdout = sys.stdout
-    realstderr = sys.stderr
-    exitcode = logpost(sys.argv)
-    sys.stdout = realstdout
-    sys.stderr = realstderr
-    miscutils.fwdebug_print(f"Exiting with = {exitcode}")
-    sys.exit(exitcode)
+    #realstdout = sys.stdout
+    #realstderr = sys.stderr
+    #exitcode = logpost(sys.argv)
+    #sys.stdout = realstdout
+    #sys.stderr = realstderr
+    sys.exit(logpost(sys.argv))

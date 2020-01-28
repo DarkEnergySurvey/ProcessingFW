@@ -667,8 +667,11 @@ def setup_working_dir(workdir, files, jobroot):
             subdir = os.path.dirname(ifile)
             if subdir != "":
                 miscutils.coremakedirs(subdir)
-
-            os.symlink(os.path.join(jobroot, ifile), ifile)
+            try:
+                os.symlink(os.path.join(jobroot, ifile), ifile)
+            except FileExistsError:
+                # if the link already exists, don't complain about it
+                pass
 
     # make symlink for log and outputwcl directory (guaranteed unique names by framework)
     #os.symlink(os.path.join("..","inputwcl"), os.path.join(workdir, "inputwcl"))
@@ -1079,7 +1082,11 @@ def post_wrapper(pfw_dbh, wcl, ins, jobfiles, logfile, exitcode, workdir):
             # undo symbolic links to input files
             for sect in ins:
                 for fname in ins[sect]:
-                    os.unlink(fname)
+                    try:
+                        print("REMOVE %s" % fname)
+                        os.unlink(fname)
+                    except FileNotFoundError:
+                        pass
 
             #jobroot = os.getcwd()[:os.getcwd().find(workdir)]
             jobroot = wcl['jobroot']
@@ -1386,31 +1393,63 @@ def job_thread(argv):
                 else:
                     print(f"DESDMTIME: run_wrapper {time.time() - starttime:0.3f}")
 
-                print(f"Post-steps (exit: {exitcode})")
+                #print("HERE1   %d" % (int(task['wrapnum'])))
                 post_wrapper(pfw_dbh, wcl, ins, jobfiles, task['logfile'], exitcode, workdir)
+                print(f"Post-steps (exit: {exitcode})")
 
                 if pfw_dbh is not None:
                     pfw_dbh.end_task(wcl['task_id']['jobwrapper'], exitcode, True)
+                #print("HERE2   %d" % (int(task['wrapnum'])))
 
                 if exitcode:
                     miscutils.fwdebug_print("Aborting due to non-zero exit code")
+                #print("HERE3   %d" % (int(task['wrapnum'])))
             except:
-                print("EXCCEPTION", task['wrapnum'])
+                print("EXCEPTION", task['wrapnum'])
                 print(traceback.format_exc())
                 exitcode = pfwdefs.PF_EXIT_FAILURE
                 try:
                     if pfw_dbh is not None:
                         pfw_dbh.end_task(wcl['task_id']['jobwrapper'], exitcode, True)
                 except:
+                    print("E2")
                     exc_type, exc_value, exc_traceback = sys.exc_info()
                     traceback.print_exception(exc_type, exc_value, exc_traceback,
                                               limit=4, file=sys.stdout)
 
             finally:
+                #print("HERE4   %d" % (int(task['wrapnum'])))
+                #print("STDP  %s  %s  %s" % (type(stdp), type(sys.stdout), type(stdporig)))
+                #if stdp is not None:
+                #    print("HERE5   %d" % (int(task['wrapnum'])))
+                #    try:
+                #        print("R1  %d" % (int(task['wrapnum'])))
+                #        sys.stdout = None
+                #        print("R2  %d" % (int(task['wrapnum'])))
+                #        sys.stdout = stdporig
+                #        print("R3  %d" % (int(task['wrapnum'])))
+
+                #    except:
+                #        print("HERE6   %d" % (int(task['wrapnum'])))
+
+                #print("HERE7   %d" % (int(task['wrapnum'])))
+                #if stde is not None:
+                #    print("HERE8   %d" % (int(task['wrapnum'])))
+                #    try:
+                #        sys.stderr = stdeorig
+                #    except:
+                #        print("HERE9   %d" % (int(task['wrapnum'])))
+
+                #print("HEREX   %d" % (int(task['wrapnum'])))
                 sys.stdout.flush()
                 sys.stderr.flush()
+                #if(internal_pdb and pfw_dbh is not None):
+                #    pfw_dbh.close()
+                #print("CALLING RES WITH %d  %s  %s  %s  %d  %d" % (exitcode, type(jobfiles), type(wcl), wcl['wrap_usage'], int(task['wrapnum']), int(pid)))
                 return (exitcode, jobfiles, wcl, wcl['wrap_usage'], task['wrapnum'], pid)
     except:
+        #print("HERE5   %d" % (int(task['wrapnum'])))
+
         print("Error: Unhandled exception in job_thread.")
         exc_type, exc_value, exc_traceback = sys.exc_info()
         traceback.print_exception(exc_type, exc_value, exc_traceback,
@@ -1473,7 +1512,7 @@ def results_error(err):
 ######################################################################
 def results_checker(result):
     """ method to collec the results  """
-    print("CALL CHECKER")
+    #print("CALL CHECKER")
     global pool
     global stop_all
     global results
@@ -1487,6 +1526,7 @@ def results_checker(result):
     global terminating
     try:
         (res, jobf, wcl, usage, wrapnum, pid) = result
+        #print("CHECKING  %d  %d ====================================="% (int(wrapnum), res))
         jobfiles_global['outfullnames'].extend(jobf['outfullnames'])
         jobfiles_global['output_putinfo'].update(jobf['output_putinfo'])
         if not terminating:
@@ -1547,6 +1587,7 @@ def results_checker(result):
         else:
             result_lock.release()
         donejobs += 1
+        #print('DONE  %d    %d' % (int(wrapnum), donejobs))
 
 ######################################################################
 def job_workflow(workflow, jobfiles, jbwcl=WCL(), pfw_dbh=None):
@@ -1605,6 +1646,7 @@ def job_workflow(workflow, jobfiles, jbwcl=WCL(), pfw_dbh=None):
                     tempproc.append(p)
             procs = tempproc
             if nproc > 1:
+                #print("MULTITHREADED -------------------------------------------------------------")
                 numjobs = len(procs)
                 # set up the thread pool
                 pool = mp.Pool(processes=nproc, maxtasksperchild=4)
@@ -1621,6 +1663,7 @@ def job_workflow(workflow, jobfiles, jbwcl=WCL(), pfw_dbh=None):
                         pool.close()
                         time.sleep(10)
                         while donejobs < numjobs and keeprunning:
+                            #print("status %d / %d  %s  +++++++++++++++++++++++++++++++" % (donejobs, numjobs, keeprunning))
                             count = 0
                             while count < 2:
                                 count = 0
