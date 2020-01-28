@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # $Id: logpost.py 48056 2019-01-08 19:57:20Z friedel $
 # $Rev:: 48056                            $:  # Revision of last commit.
 # $LastChangedBy:: friedel                $:  # Author of last commit.
@@ -9,8 +9,8 @@
 import sys
 import os
 
-import processingfw.pfwdefs as pfwdefs
 import despymisc.miscutils as miscutils
+import processingfw.pfwdefs as pfwdefs
 import processingfw.pfwconfig as pfwconfig
 from processingfw.pfwlog import log_pfw_event
 from qcframework import Messaging
@@ -22,14 +22,16 @@ def logpost(argv=None):
         argv = sys.argv
 
     # open file to catch error messages about command line
-    debugfh = open('logpost.out', 'w', 0)
+    debugfh = open('logpost.out', 'w')
+    outorig = sys.stdout
+    errorig = sys.stderr
     sys.stdout = debugfh
     sys.stderr = debugfh
 
-    print ' '.join(argv)  # print command line for debugging
+    print(' '.join(argv))  # print command line for debugging
 
     if len(argv) < 5:
-        print 'Usage: logpost configfile block subblocktype subblock retval'
+        print("Usage: logpost configfile block subblocktype subblock retval")
         debugfh.close()
         return pfwdefs.PF_EXIT_FAILURE
 
@@ -42,10 +44,10 @@ def logpost(argv=None):
         retval = int(sys.argv[5])
 
     if miscutils.fwdebug_check(3, 'PFWPOST_DEBUG'):
-        miscutils.fwdebug_print("configfile = %s" % configfile)
-        miscutils.fwdebug_print("block = %s" % blockname)
-        miscutils.fwdebug_print("subblock = %s" % subblock)
-        miscutils.fwdebug_print("retval = %s" % retval)
+        miscutils.fwdebug_print(f"configfile = {configfile}")
+        miscutils.fwdebug_print(f"block = {blockname}")
+        miscutils.fwdebug_print(f"subblock = {subblock}")
+        miscutils.fwdebug_print(f"retval = {retval}")
 
     # read sysinfo file
     config = pfwconfig.PfwConfig({'wclfile': configfile})
@@ -61,11 +63,14 @@ def logpost(argv=None):
                                        {pfwdefs.PF_CURRVALS: {'flabel': '${subblock}_logpost',
                                                               'subblock': subblock,
                                                               'fsuffix':'out'}})
-    new_log_name = "%s/%s" % (blkdir, new_log_name)
-    miscutils.fwdebug_print("new_log_name = %s" % new_log_name)
+    new_log_name = f"{blkdir}/{new_log_name}"
+    miscutils.fwdebug_print(f"new_log_name = {new_log_name}")
 
     debugfh.close()
-    os.chmod('logpost.out', 0666)
+    sys.stdout = outorig
+    sys.stderr = errorig
+
+    os.chmod('logpost.out', 0o666)
     os.rename('logpost.out', new_log_name)
     if 'use_qcf' in config and config['use_qcf']:
         if config.dbh is None:
@@ -99,16 +104,18 @@ def logpost(argv=None):
         miscutils.fwdebug_print("Setting failure retval")
         retval = pfwdefs.PF_EXIT_FAILURE
 
-    miscutils.fwdebug_print("returning retval = %s" % retval)
+    miscutils.fwdebug_print(f"returning retval = {retval}")
     miscutils.fwdebug_print("logpost done")
     debugfh.close()
+    sys.stdout = outorig
+    sys.stderr = errorig
+    miscutils.fwdebug_print(f"Exiting with = {retval}")
     return int(retval)
 
 if __name__ == "__main__":
-    realstdout = sys.stdout
-    realstderr = sys.stderr
-    exitcode = logpost(sys.argv)
-    sys.stdout = realstdout
-    sys.stderr = realstderr
-    miscutils.fwdebug_print("Exiting with = %s" % exitcode)
-    sys.exit(exitcode)
+    #realstdout = sys.stdout
+    #realstderr = sys.stderr
+    #exitcode = logpost(sys.argv)
+    #sys.stdout = realstdout
+    #sys.stderr = realstderr
+    sys.exit(logpost(sys.argv))

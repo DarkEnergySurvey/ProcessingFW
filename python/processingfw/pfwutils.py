@@ -1,4 +1,3 @@
-#!usr/bin/env python
 # $Id: pfwutils.py 48552 2019-05-20 19:38:27Z friedel $
 # $Rev:: 48552                            $:  # Revision of last commit.
 # $LastChangedBy:: friedel                $:  # Author of last commit.
@@ -24,7 +23,7 @@ import qcframework.Messaging as Messaging
 #######################################################################
 def pad_jobnum(jobnum):
     """ Pad the job number """
-    return "%04d" % int(jobnum)
+    return f"{int(jobnum):04d}"
 
 
 #######################################################################
@@ -33,11 +32,11 @@ def get_hdrup_sections(wcl, prefix):
     hdrups = {}
     for key, val in wcl.items():
         if miscutils.fwdebug_check(3, "PFWUTILS_DEBUG"):
-            miscutils.fwdebug_print("\tsearching for hdrup prefix in %s" % key)
+            miscutils.fwdebug_print(f"\tsearching for hdrup prefix in {key}")
 
-        if re.search(r"^%s\S+$" % prefix, key):
+        if re.search(fr"^{prefix}\S+$", key):
             if miscutils.fwdebug_check(3, "PFWUTILS_DEBUG"):
-                miscutils.fwdebug_print("\tFound hdrup prefex %s" % key)
+                miscutils.fwdebug_print(f"\tFound hdrup prefex {key}")
             hdrups[key] = val
     return hdrups
 
@@ -63,8 +62,7 @@ def search_wcl_for_variables(wcl):
         else:
             if miscutils.fwdebug_check(9, "PFWUTILS_DEBUG"):
                 miscutils.fwdebug_print("Note: wcl is not string.")
-                miscutils.fwdebug_print("key = %s, type(val) = %s, val = '%s'" % \
-                                        (key, type(val), val))
+                miscutils.fwdebug_print(f"key = {key}, type(val) = {type(val)}, val = '{val}'")
 
     if miscutils.fwdebug_check(9, "PFWUTILS_DEBUG"):
         miscutils.fwdebug_print("END")
@@ -141,16 +139,16 @@ def untar_dir(filename, outputdir):
                 done = True
             except OSError as exc:
                 if exc.errno == errno.EEXIST:
-                    print "Problems untaring %s: %s" % (filename, exc)
+                    print(f"Problems untaring {filename}: {exc}")
                     if cnt < maxcnt:
-                        print "Trying again."
+                        print("Trying again.")
                 else:
-                    print "Error: %s" % exc
+                    print(f"Error: {exc}")
                     raise
         cnt += 1
 
     if not done:
-        print "Could not untar %s.  Aborting" % filename
+        print(f"Could not untar {filename}.  Aborting")
 
 
 ###########################################################################
@@ -165,30 +163,31 @@ def get_version(execname, execdefs):
         verflag = execdefs[execname.lower()]['version_flag']
         verpat = execdefs[execname.lower()]['version_pattern']
 
-        cmd = "%s %s" % (execname, verflag)
+        cmd = f"{execname} {verflag}"
         try:
             process = subprocess.Popen(cmd.split(),
                                        shell=False,
                                        stdout=subprocess.PIPE,
-                                       stderr=subprocess.STDOUT)
+                                       stderr=subprocess.STDOUT,
+                                       text=True)
         except:
             (extype, exvalue, _) = sys.exc_info()
-            print "********************"
-            print "Unexpected error: %s - %s" % (extype, exvalue)
-            print "cmd> %s" % cmd
-            print "Probably could not find %s in path" % cmd.split()[0]
-            print "Check for mispelled execname in submit wcl or"
-            print "    make sure that the corresponding eups package is in the metapackage "
-            print "    and it sets up the path correctly"
+            print("********************")
+            print(f"Unexpected error: {extype} - {exvalue}")
+            print(f"cmd> {cmd}")
+            print(f"Probably could not find {cmd.split()[0]} in path")
+            print("Check for mispelled execname in submit wcl or")
+            print("    make sure that the corresponding eups package is in the metapackage ")
+            print("    and it sets up the path correctly")
             raise
 
         process.wait()
         out = process.communicate()[0]
         if process.returncode != 0:
             miscutils.fwdebug_print("INFO:  problem when running code to get version")
-            miscutils.fwdebug_print("\t%s %s %s" % (execname, verflag, verpat))
-            miscutils.fwdebug_print("\tcmd> %s" % cmd)
-            miscutils.fwdebug_print("\t%s" % out)
+            miscutils.fwdebug_print(f"\t{execname} {verflag} {verpat}")
+            miscutils.fwdebug_print(f"\tcmd> {cmd}")
+            miscutils.fwdebug_print(f"\t{out}")
             ver = None
         else:
             # parse output with verpat
@@ -198,19 +197,18 @@ def get_version(execname, execdefs):
                     ver = pmatch.group(1)
                 else:
                     if miscutils.fwdebug_check(1, "PFWUTILS_DEBUG"):
-                        miscutils.fwdebug_print("re.search didn't find version for exec %s" % \
-                                                execname)
+                        miscutils.fwdebug_print(f"re.search didn't find version for exec {execname}")
                     if miscutils.fwdebug_check(3, "PFWUTILS_DEBUG"):
-                        miscutils.fwdebug_print("\tcmd output=%s" % out)
-                        miscutils.fwdebug_print("\tcmd verpat=%s" % verpat)
+                        miscutils.fwdebug_print(f"\tcmd output={out}")
+                        miscutils.fwdebug_print(f"\tcmd verpat={verpat}")
             except Exception as err:
                 #print type(err)
                 ver = None
-                print "Error: Exception from re.match.  Didn't find version: %s" % err
+                print(f"Error: Exception from re.match.  Didn't find version: {err}")
                 raise
     else:
         if miscutils.fwdebug_check(3, "PFWUTILS_DEBUG"):
-            miscutils.fwdebug_print("INFO: Could not find version info for exec %s" % execname)
+            miscutils.fwdebug_print(f"INFO: Could not find version info for exec {execname}")
 
     return ver
 
@@ -222,12 +220,12 @@ def run_cmd_qcf(cmd, logfilename, wid, execnames, use_qcf=False, dbh=None, pfwat
     lasttime = time.time()
     if miscutils.fwdebug_check(3, "PFWUTILS_DEBUG"):
         miscutils.fwdebug_print("BEG")
-        miscutils.fwdebug_print("working dir = %s" % (os.getcwd()))
-        miscutils.fwdebug_print("cmd = %s" % cmd)
-        miscutils.fwdebug_print("logfilename = %s" % logfilename)
-        miscutils.fwdebug_print("wid = %s" % wid)
-        miscutils.fwdebug_print("execnames = %s" % execnames)
-        miscutils.fwdebug_print("use_qcf = %s" % use_qcf)
+        miscutils.fwdebug_print(f"working dir = {os.getcwd()}")
+        miscutils.fwdebug_print(f"cmd = {cmd}")
+        miscutils.fwdebug_print(f"logfilename = {logfilename}")
+        miscutils.fwdebug_print(f"wid = {wid}")
+        miscutils.fwdebug_print(f"execnames = {execnames}")
+        miscutils.fwdebug_print(f"use_qcf = {use_qcf}")
 
     use_qcf = miscutils.convertBool(use_qcf)
 
@@ -241,18 +239,18 @@ def run_cmd_qcf(cmd, logfilename, wid, execnames, use_qcf=False, dbh=None, pfwat
                                         stderr=subprocess.STDOUT)
     except:
         (extype, exvalue, _) = sys.exc_info()
-        print "********************"
-        print "Unexpected error: %s - %s" % (extype, exvalue)
-        print "cmd> %s" % cmd
-        print "Probably could not find %s in path" % cmd.split()[0]
-        print "Check for mispelled execname in submit wcl or"
-        print "    make sure that the corresponding eups package is in the metapackage "
-        print "    and it sets up the path correctly"
+        print("********************")
+        print(f"Unexpected error: {extype} - {exvalue}")
+        print(f"cmd> {cmd}")
+        print(f"Probably could not find {cmd.split()[0]} in path")
+        print("Check for mispelled execname in submit wcl or")
+        print("    make sure that the corresponding eups package is in the metapackage ")
+        print("    and it sets up the path correctly")
         raise
 
     try:
         buf = os.read(process_wrap.stdout.fileno(), bufsize)
-        while process_wrap.poll() is None or len(buf) != 0:
+        while process_wrap.poll() is None or buf:
             if dbh is not None:
                 now = time.time()
                 if now - lasttime > 30.*60.:
@@ -267,19 +265,18 @@ def run_cmd_qcf(cmd, logfilename, wid, execnames, use_qcf=False, dbh=None, pfwat
                 time.sleep(0.1)
 
     except IOError as exc:
-        print "\tI/O error({0}): {1}".format(exc.errno, exc.strerror)
+        print(f"\tI/O error({exc.errno}): {exc.strerror}")
 
     except:
         (extype, exvalue, _) = sys.exc_info()
-        print "\tError: Unexpected error: %s - %s" % (extype, exvalue)
+        print(f"\tError: Unexpected error: {extype} - {exvalue}")
         raise
 
     sys.stdout.flush()
     if miscutils.fwdebug_check(3, "PFWUTILS_DEBUG"):
         if process_wrap.returncode != 0:
-            miscutils.fwdebug_print("\tInfo: cmd exited with non-zero exit code = %s" % \
-                                    process_wrap.returncode)
-            miscutils.fwdebug_print("\tInfo: failed cmd = %s" % cmd)
+            miscutils.fwdebug_print(f"\tInfo: cmd exited with non-zero exit code = {process_wrap.returncode}")
+            miscutils.fwdebug_print(f"\tInfo: failed cmd = {cmd}")
         else:
             miscutils.fwdebug_print("\tInfo: cmd exited with exit code = 0")
 
@@ -326,8 +323,8 @@ def index_jobwrapper_info(jwrapinfo):
     jwrap_bywrap = {}
     for jwrap in jwrapinfo.values():
         if jwrap['label'] is None:
-            print "Missing label for jobwrapper task."
-            print "Make sure you are using print_job.py from same ProcessingFW version as processing attempt"
+            print("Missing label for jobwrapper task.")
+            print("Make sure you are using print_job.py from same ProcessingFW version as processing attempt")
             sys.exit(1)
         if jwrap['parent_task_id'] not in jwrap_byjob:
             jwrap_byjob[jwrap['parent_task_id']] = {}
@@ -349,8 +346,7 @@ def should_save_file(mastersave, filesave, exitcode):
         else:
             msave = 'file'
 
-    retval = ((msave == 'always') or (msave == 'file' and fsave))
-    return retval
+    return (msave == 'always') or (msave == 'file' and fsave)
 
 
 #######################################################################
@@ -358,7 +354,7 @@ def should_compress_file(mastercompress, filecompress, exitcode):
     """ Determine whether should compress the file """
 
     if miscutils.fwdebug_check(6, "PFWUTILS_DEBUG"):
-        miscutils.fwdebug_print("BEG: master=%s, file=%s, exitcode=%s" % (mastercompress, filecompress, exitcode))
+        miscutils.fwdebug_print(f"BEG: master={mastercompress}, file={filecompress}, exitcode={exitcode}")
 
     mcompress = mastercompress
     if isinstance(mastercompress, str):
@@ -375,7 +371,7 @@ def should_compress_file(mastercompress, filecompress, exitcode):
     retval = (mcompress == 'file' and fcompress)
 
     if miscutils.fwdebug_check(6, "PFWUTILS_DEBUG"):
-        miscutils.fwdebug_print("END - retval = %s" % retval)
+        miscutils.fwdebug_print(f"END - retval = {retval}")
     return retval
 
 
@@ -405,8 +401,8 @@ def pfw_dynam_load_class(pfw_dbh, wcl, parent_tid, attempt_task_id,
         the_class_obj = the_class(valdict, wcl)
     except:
         (extype, exvalue, _) = sys.exc_info()
-        msg = "Error: creating %s object - %s - %s" % (label, extype, exvalue)
-        print "\n%s" % msg
+        msg = f"Error: creating {label} object - {extype} - {exvalue}"
+        print(f"\n{msg}")
         if pfw_dbh is not None:
             Messaging.pfw_message(pfw_dbh, wcl['pfw_attempt_id'], parent_tid, msg, pfwdefs.PFWDB_MSG_ERROR)
         raise
@@ -432,11 +428,11 @@ def diskusage(path):
     usum = 0
     for (dirpath, _, filenames) in os.walk(path):
         for name in filenames:
-            if not os.path.islink('%s/%s' % (dirpath, name)):
-                fsize = os.path.getsize('%s/%s' % (dirpath, name))
+            if not os.path.islink(f"{dirpath}/{name}"):
+                fsize = os.path.getsize(f"{dirpath}/{name}")
                 if miscutils.fwdebug_check(6, "PUDISKU_DEBUG"):
-                    miscutils.fwdebug_print("size of %s/%s = %s" % (dirpath, name, fsize))
+                    miscutils.fwdebug_print(f"size of {dirpath}/{name} = {fsize}")
                 usum += fsize
     if miscutils.fwdebug_check(3, "PUDISKU_DEBUG"):
-        miscutils.fwdebug_print("usum = %s" % usum)
+        miscutils.fwdebug_print(f"usum = {usum}")
     return usum

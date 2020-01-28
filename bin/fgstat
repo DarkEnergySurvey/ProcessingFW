@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
 Print information about DESDM jobs in the FermiGrid queue from
@@ -35,7 +35,6 @@ Example condor_q commands:
 import re
 import os
 from datetime import datetime
-from datetime import timedelta
 
 import processingfw.pfwcondor as pfwcondor
 
@@ -55,7 +54,7 @@ def print_jobs(chost, jobs, now):
 
         if 'user' in jdict:
             name2 = jdict['user'].split('@')[0]
-        name = "%s/%s" % (name1, name2)
+        name = f"{name1}/{name2}"
 
         # grab the condor id that corresponds to the id on the submit machine
         submit_condorid = ""
@@ -74,7 +73,7 @@ def print_jobs(chost, jobs, now):
         if 'remotehost' in jdict:
             remotehost = jdict['remotehost'].replace('.fnal.gov', '')
         elif 'lastremotehost' in jdict:
-            remotehost = '*%s' % jdict['lastremotehost'].replace('.fnal.gov', '')
+            remotehost = f"*{jdict['lastremotehost'].replace('.fnal.gov', '')}"
 
         # calculate wallclock
         jobstartdate = ""
@@ -98,9 +97,9 @@ def print_jobs(chost, jobs, now):
         # try to print a string that describes the job in framework terms
         label = ""
         if 'des_subblock' in jdict:
-            label = 'j%s_' % jdict['des_subblock']
+            label = f"j{jdict['des_subblock']}_"
         if 'des_block' in jdict:
-            label += '%s_' % jdict['des_block']
+            label += f"{jdict['des_block']}_"
         if 'des_run' in jdict:
             label += jdict['des_run']
         if label == "" and 'env' in jdict and 'DES_RUN' in jdict['env']:
@@ -110,20 +109,17 @@ def print_jobs(chost, jobs, now):
                     k, v = piece.split('=')
                     envdict[k.lower()] = v
             if 'des_subblock' in envdict:
-                label = 'j%s_' % envdict['des_subblock']
+                label = f"j{envdict['des_subblock']}_"
             if 'des_block' in envdict:
-                label += '%s_' % envdict['des_block']
+                label += f"{envdict['des_block']}_"
             if 'des_run' in envdict:
                 label += envdict['des_run']
         if label == "" and 'transferinput' in jdict:
-            match = re.search("([^,]+_job_[^,]+).wcl", jdict['transferinput'])
+            match = re.search(r"([^,]+_job_[^,]+).wcl", jdict['transferinput'])
             if match:
                 label = os.path.basename(match.group(1)).replace('job_', '')
 
-        print "%10s %10s %20s %5s %20s %6s  %20s %15s %10s %s" % \
-               (chost, j, name, pfwcondor.get_job_status_str(j, jobs),
-                datetime.fromtimestamp(int(jdict['qdate'])), flavor,
-                remotehost, wallclock, submit_condorid, label)
+        print(f"{chost:10s} {j:10s} {name:20s} {pfwcondor.get_job_status_str(j, jobs):5s} {datetime.fromtimestamp(int(jdict['qdate'])):20s} {flavor:6s}  {remotehost:20s} {wallclock:15s} {submit_condorid:10s} {label:s}")
 
 
 def main():
@@ -139,10 +135,8 @@ def main():
 
 
     # print headers
-    print "%10s %10s %20s %5s %20s %6s  %20s %15s %10s %s" % \
-           ('FG CHOST', 'FG CID', 'FG user/DES user', 'stat', 'qdate', 'flavor', 'remotehost',
-            'wallclock', 'DES CID', 'DES label')
-    print '-'*168
+    print(f"{'FG CHOST':10s} {'FG CID':10s} {'FG user/DES user':20s} {'stat':5s} {'qdate':20s} {'flavor':6s}  {'remotehost':20s} {'wallclock':15s} {'DES CID':10s} {'DES label':s}")
+    print('-' * 168)
     #OLD print_jobs('fnpcosg1', jobs, now)
     print_jobs('gpce04', jobsCE1, now)
     print_jobs('gpce03', jobsCE2, now)

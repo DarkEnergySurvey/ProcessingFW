@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # $Id: jobpre.py 48056 2019-01-08 19:57:20Z friedel $
 # $Rev:: 48056                            $:  # Revision of last commit.
 # $LastChangedBy:: friedel                $:  # Author of last commit.
@@ -8,10 +8,10 @@
 
 import sys
 import os
-import tempfile
+import random
+import despymisc.miscutils as miscutils
 import processingfw.pfwdefs as pfwdefs
 import processingfw.pfwutils as pfwutils
-import despymisc.miscutils as miscutils
 from processingfw.pfwlog import log_pfw_event
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwdb as pfwdb
@@ -22,16 +22,21 @@ def jobpre(argv=None):
     if argv is None:
         argv = sys.argv
 
-    debugfh = tempfile.NamedTemporaryFile(prefix='jobpre_', dir='.', delete=False)
+    #debugfh = tempfile.NamedTemporaryFile(prefix='jobpre_', dir='.', delete=False)
+    default_log = f"jobpre_{random.randint(1,10000000):08d}.out"
+    debugfh = open(default_log, 'w')
+
     tmpfn = debugfh.name
+    outorig = sys.stdout
+    errorig = sys.stderr
     sys.stdout = debugfh
     sys.stderr = debugfh
 
-    print ' '.join(sys.argv) # command line for debugging
-    print os.getcwd()
+    print(' '.join(argv)) # command line for debugging
+    print(os.getcwd())
 
     if len(argv) < 3:
-        print 'Usage: jobpre configfile jobnum'
+        print("Usage: jobpre configfile jobnum")
         debugfh.close()
         return pfwdefs.PF_EXIT_FAILURE
 
@@ -49,11 +54,13 @@ def jobpre(argv=None):
     new_log_name = config.get_filename('job', {pfwdefs.PF_CURRVALS: {pfwdefs.PF_JOBNUM:jobnum,
                                                                      'flabel': 'jobpre',
                                                                      'fsuffix':'out'}})
-    new_log_name = "%s/%s/%s" % (blkdir, tjpad, new_log_name)
-    miscutils.fwdebug_print("new_log_name = %s" % new_log_name)
+    new_log_name = f"{blkdir}/{tjpad}/{new_log_name}"
+    miscutils.fwdebug_print(f"new_log_name = {new_log_name}")
 
     debugfh.close()
-    os.chmod(tmpfn, 0666)
+    sys.stdout = outorig
+    sys.stderr = errorig
+    os.chmod(tmpfn, 0o666)
     os.rename(tmpfn, new_log_name)
 
     dbh = None
@@ -81,6 +88,8 @@ def jobpre(argv=None):
 
     miscutils.fwdebug_print("jobpre done")
     debugfh.close()
+    sys.stdout = outorig
+    sys.stderr = errorig
     return pfwdefs.PF_EXIT_SUCCESS
 
 if __name__ == "__main__":

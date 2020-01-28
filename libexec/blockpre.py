@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # $Id: blockpre.py 41004 2015-12-11 15:49:41Z mgower $
 # $Rev:: 41004                            $:  # Revision of last commit.
 # $LastChangedBy:: mgower                 $:  # Author of last commit.
@@ -9,8 +9,8 @@ import sys
 import os
 import socket
 
-import processingfw.pfwdefs as pfwdefs
 import despymisc.miscutils as miscutils
+import processingfw.pfwdefs as pfwdefs
 from processingfw.pfwlog import log_pfw_event
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwcondor as pfwcondor
@@ -25,11 +25,10 @@ def write_block_condor(config):
 
     blockbase = config.get_filename('block', {pfwdefs.PF_CURRVALS: {'flabel': '$(jobname)',
                                                                     'fsuffix':''}})
-    jstdout = "%s/%sout" % (blkdir, blockbase)   # base ends with .
-    jstderr = "%s/%serr" % (blkdir, blockbase)
+    jstdout = f"{blkdir}/{blockbase}out"   # base ends with .
+    jstderr = f"{blkdir}/{blockbase}err"
 
-    premove = '((JobStatus == 5) && (HoldReason =!= "via condor_hold (by user %s)"))' % \
-               config.getfull('operator')
+    premove = f'((JobStatus == 5) && (HoldReason =!= "via condor_hold (by user {config.getfull("operator")})"))'
     # put jobs that have run once and are back in idle on hold
     phold = '((NumJobStarts > 0) && (JobStatus == 1))'
 
@@ -50,7 +49,7 @@ def write_block_condor(config):
     userattribs = config.get_condor_attributes(blockname, '$(jobname)')
     reqs = ['NumJobStarts == 0']   # don't want to rerun any job
     jobattribs['universe'] = 'vanilla'
-    reqs.append('(machine == "%s")' % submit_machine)
+    reqs.append(f'(machine == "{submit_machine}")')
     jobattribs['requirements'] = ' && '.join(reqs)
 
     pfwcondor.write_condor_descfile('blocktask', filename, jobattribs, userattribs)
@@ -62,19 +61,22 @@ def write_block_condor(config):
 
 def blockpre(argv=None):
     """ Program entry point """
+    print('ARGV', argv)
     if argv is None:
         argv = sys.argv
 
     default_log = 'blockpre.out'
 
-    debugfh = open(default_log, 'w', 0)
+    debugfh = open(default_log, 'w')
+    outorig = sys.stdout
+    errorig = sys.stderr
     sys.stdout = debugfh
     sys.stderr = debugfh
 
-    print ' '.join(sys.argv) # command line for debugging
+    print(' '.join(sys.argv)) # command line for debugging
 
     if len(argv) < 2 or len(argv) > 3:
-        print 'Usage: blockpre configfile'
+        print("Usage: blockpre configfile")
         debugfh.close()
         return pfwdefs.PF_EXIT_FAILURE
 
@@ -85,13 +87,13 @@ def blockpre(argv=None):
 
     # make sure values which depend upon block are set correctly
     config.set_block_info()
-    miscutils.fwdebug_print("blknum = %s" % config[pfwdefs.PF_BLKNUM])
+    miscutils.fwdebug_print(f"blknum = {config[pfwdefs.PF_BLKNUM]}")
 
     with open(configfile, 'w') as cfgfh:
         config.write(cfgfh)
 
     blockname = config.getfull('blockname')
-    miscutils.fwdebug_print("blockname = %s" % blockname)
+    miscutils.fwdebug_print(f"blockname = {blockname}")
 
     blkdir = config.getfull('block_dir')
 
@@ -99,11 +101,11 @@ def blockpre(argv=None):
     miscutils.fwdebug_print("getting new_log_name")
     new_log_name = config.get_filename('block', {pfwdefs.PF_CURRVALS: {'flabel': 'blockpre',
                                                                        'fsuffix':'out'}})
-    new_log_name = "%s/%s" % (blkdir, new_log_name)
-    miscutils.fwdebug_print("new_log_name = %s" % new_log_name)
+    new_log_name = f"{blkdir}/{new_log_name}"
+    miscutils.fwdebug_print(f"new_log_name = {new_log_name}")
 
     debugfh.close()
-    os.chmod(default_log, 0666)
+    os.chmod(default_log, 0o666)
     os.rename(default_log, new_log_name)
     debugfh = open(new_log_name, 'a+')
     sys.stdout = debugfh
@@ -117,7 +119,8 @@ def blockpre(argv=None):
 
     miscutils.fwdebug_print("blockpre done")
     debugfh.close()
-
+    sys.stdout = outorig
+    sys.stderr = errorig
     return pfwdefs.PF_EXIT_SUCCESS
 
 if __name__ == "__main__":

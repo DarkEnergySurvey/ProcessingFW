@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # $Id: runqueries.py 47308 2018-07-31 19:42:07Z friedel $
 # $Rev:: 47308                            $:  # Revision of last commit.
 # $LastChangedBy:: friedel                $:  # Author of last commit.
@@ -47,8 +47,7 @@ def create_master_list(config, configfile, modname, moddict,
     if 'exec' in search_dict:
         prog = search_dict['exec']
         if 'args' not in search_dict:
-            print "\t\tWarning:  %s in module %s does not have args defined\n" % \
-                   (search_name, modname)
+            print(f"\t\tWarning:  {search_name} in module {modname} does not have args defined\n")
             args = ""
         else:
             args = search_dict['args']
@@ -61,30 +60,28 @@ def create_master_list(config, configfile, modname, moddict,
             miscutils.fwdie("Error: Could not determine base path for genquerydb.py",
                             pfwdefs.PF_EXIT_FAILURE)
 
-        prog = "%s/libexec/genquerydb.py" % (dirgenquery)
-        args = "--qoutfile %s --qouttype %s --config %s --module %s --search %s" % \
-               (qoutfile, qouttype, configfile, modname, search_name)
+        prog = f"{dirgenquery}/libexec/genquerydb.py"
+        args = f"--qoutfile {qoutfile} --qouttype {qouttype} --config {configfile} --module {modname} --search {search_name}"
 
     if not prog:
-        print "\tWarning: %s in module %s does not have exec or %s defined" % \
-               (search_name, modname, pfwdefs.SW_QUERYFIELDS)
+        print(f"\tWarning: {search_name} in module {modname} does not have exec or {pfwdefs.SW_QUERYFIELDS} defined")
         return
 
     search_dict['qoutfile'] = qoutfile
     search_dict['qlog'] = qlog
 
     prog = replfuncs.replace_vars_single(prog, config,
-                                  {pfwdefs.PF_CURRVALS:{pfwdefs.SW_MODULESECT:modname},
-                                   'searchobj':search_dict})
+                                         {pfwdefs.PF_CURRVALS: {pfwdefs.SW_MODULESECT: modname},
+                                          'searchobj': search_dict})
 
     # handle both outputxml and outputfile args
     args = replfuncs.replace_vars_single(args, config,
-                                  {pfwdefs.PF_CURRVALS:{pfwdefs.SW_MODULESECT:modname,
-                                                        'outputxml':qoutfile,
-                                                        'outputfile':qoutfile,
-                                                        'qoutfile':qoutfile},
-                                   #intgdefs.REPLACE_VARS: True,
-                                   'searchobj':search_dict})
+                                         {pfwdefs.PF_CURRVALS:{pfwdefs.SW_MODULESECT:modname,
+                                                               'outputxml':qoutfile,
+                                                               'outputfile':qoutfile,
+                                                               'qoutfile':qoutfile},
+                                          #intgdefs.REPLACE_VARS: True,
+                                          'searchobj':search_dict})
 
     # get version for query code
     query_version = None
@@ -114,29 +111,28 @@ def create_master_list(config, configfile, modname, moddict,
         pfw_dbh = None
 
     cwd = os.getcwd()
-    print "\t\tCalling code to create master list for obj %s in module %s" % \
-           (search_name, modname)
-    print "\t\t", prog, args
-    print "\t\tSee output in %s/%s" % (cwd, qlog)
-    print "\t\tSee master list will be in %s/%s" % (cwd, qoutfile)
+    print(f"\t\tCalling code to create master list for obj {search_name} in module {modname}")
+    print("\t\t", prog, args)
+    print(f"\t\tSee output in {cwd}/{qlog}")
+    print(f"\t\tSee master list will be in {cwd}/{qoutfile}")
 
-    print "\t\tCreating master list - start ", time.time()
+    print("\t\tCreating master list - start ", time.time())
 
-    cmd = "%s %s" % (prog, args)
+    cmd = f"{prog} {args}"
     exitcode = None
     try:
         exitcode = pfwutils.run_cmd_qcf(cmd, qlog, query_tid, os.path.basename(prog),
                                         config.getfull(pfwdefs.PF_USE_QCF), pfw_dbh,
                                         config['pfw_attempt_id'])
     except:
-        print "******************************"
-        print "Error: "
+        print("******************************")
+        print("Error: ")
         (extype, exvalue, trback) = sys.exc_info()
-        print "******************************"
+        print("******************************")
         traceback.print_exception(extype, exvalue, trback, file=sys.stdout)
         exitcode = pfwdefs.PF_EXIT_FAILURE
 
-    print "\t\tCreating master list - end ", time.time()
+    print("\t\tCreating master list - end ", time.time())
     sys.stdout.flush()
     if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
         pfw_dbh.end_task(query_tid, exitcode, True)
@@ -144,8 +140,8 @@ def create_master_list(config, configfile, modname, moddict,
             pfw_dbh.close()
 
     if exitcode != 0:
-        miscutils.fwdie("Error: problem creating master list (exitcode = %s)" % \
-                        (exitcode), exitcode)
+        miscutils.fwdie(f"Error: problem creating master list (exitcode = {exitcode})",
+                        exitcode)
 
     miscutils.fwdebug_print("END")
 
@@ -159,14 +155,13 @@ def runqueries(config, configfile, modname, modules_prev_in_list, connection=Non
         if 'list_order' in moddict:
             listorder = miscutils.fwsplit(moddict['list_order'].lower())
         else:
-            listorder = uber_list_dict.keys()
+            listorder = list(uber_list_dict.keys())
 
         for listname in listorder:
             list_dict = uber_list_dict[listname]
             if 'depends' not in list_dict or \
                 list_dict['depends'] not in modules_prev_in_list:
-                print "\t%s-%s: creating master list\n" % \
-                      (modname, listname)
+                print(f"\t{modname}-{listname}: creating master list\n")
                 create_master_list(config, configfile, modname,
                                    moddict, listname, list_dict, pfwdefs.SW_LISTSECT, connection)
 
@@ -175,8 +170,7 @@ def runqueries(config, configfile, modname, modules_prev_in_list, connection=Non
         for filename, file_dict in moddict[pfwdefs.SW_FILESECT].items():
             if 'depends' not in file_dict or \
                 not file_dict['depends'] not in modules_prev_in_list:
-                print "\t%s-%s: creating master list\n" % \
-                      (modname, filename)
+                print(f"\t{modname}-{filename}: creating master list\n")
                 create_master_list(config, configfile, modname,
                                    moddict, filename, file_dict, pfwdefs.SW_FILESECT, connection)
 
@@ -205,8 +199,8 @@ def main(argv=None):
     modules_prev_in_list = {}
     for modname in modulelist:
         if modname not in config[pfwdefs.SW_MODULESECT]:
-            miscutils.fwdie("Error: Could not find module description for module %s\n" % \
-                            (modname), pfwdefs.PF_EXIT_FAILURE)
+            miscutils.fwdie(f"Error: Could not find module description for module {modname}\n",
+                            pfwdefs.PF_EXIT_FAILURE)
         runqueries(config, configfile, modname, modules_prev_in_list)
         modules_prev_in_list[modname] = True
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # $Id: begblock.py 47308 2018-07-31 19:42:07Z friedel $
 # $Rev:: 47308                            $:  # Revision of last commit.
 # $LastChangedBy:: friedel                $:  # Author of last commit.
@@ -6,15 +6,12 @@
 
 """ Program run at beginning of block that performs job setup """
 
-import traceback
 import sys
 import os
-import time
-from collections import OrderedDict
+import collections
 
 import despymisc.miscutils as miscutils
 import intgutils.intgdefs as intgdefs
-import intgutils.replace_funcs as replfuncs
 import processingfw.pfwdefs as pfwdefs
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwutils as pfwutils
@@ -25,8 +22,8 @@ import processingfw.pfwdb as pfwdb
 
 def begblock(argv):
     """ Program entry point """
-    if argv == None:
-        argv = sys.argv
+    if argv is None:
+        argv = sys.argv[1:]
 
     configfile = argv[0]
     config = pfwconfig.PfwConfig({'wclfile': configfile})
@@ -47,7 +44,7 @@ def begblock(argv):
     dbh = None
     blktid = -1
     if miscutils.fwdebug_check(3, 'PFWBLOCK_DEBUG'):
-        miscutils.fwdebug_print("blknum = %s" % (config[pfwdefs.PF_BLKNUM]))
+        miscutils.fwdebug_print(f"blknum = {config[pfwdefs.PF_BLKNUM]}")
     if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
         if config.dbh is None:
             dbh = pfwdb.PFWDB(submit_des_services, submit_des_db_section)
@@ -68,16 +65,16 @@ def begblock(argv):
         modules_prev_in_list = {}
 
         joblist = {}
-        parlist = OrderedDict()
-        masterdata = OrderedDict()
+        parlist = collections.OrderedDict()
+        masterdata = collections.OrderedDict()
         filelist = {'infiles' : {},
                     'outfiles': {}}
         maxthread = 1
         for num, modname in enumerate(modulelist):
-            print "XXXXXXXXXXXXXXXXXXXX %s XXXXXXXXXXXXXXXXXXXX" % modname
+            print(f"XXXXXXXXXXXXXXXXXXXX {modname} XXXXXXXXXXXXXXXXXXXX")
             if modname not in config[pfwdefs.SW_MODULESECT]:
-                miscutils.fwdie("Error: Could not find module description for module %s\n" % \
-                                (modname), pfwdefs.PF_EXIT_FAILURE)
+                miscutils.fwdie(f"Error: Could not find module description for module {modname}\n",
+                                pfwdefs.PF_EXIT_FAILURE)
             moddict = config[pfwdefs.SW_MODULESECT][modname]
 
             runqueries(config, configfile, modname, modules_prev_in_list, dbh)
@@ -89,26 +86,26 @@ def begblock(argv):
             if pfwdefs.PF_NOOP not in moddict or not miscutils.convertBool(moddict[pfwdefs.PF_NOOP]):
                 pfwblock.create_fullnames(config, modname, masterdata)
                 if miscutils.fwdebug_check(9, 'PFWBLOCK_DEBUG') and modname in masterdata:
-                    with open('%s-masterdata.txt' % modname, 'w') as fh:
+                    with open(f"{modname}-masterdata.txt", 'w') as fh:
                         miscutils.pretty_print_dict(masterdata[modname], fh)
 
                 pfwblock.add_file_metadata(config, modname, connect=dbh)
                 sublists = pfwblock.create_sublists(config, modname, masterdata)
                 if sublists is not None:
                     if miscutils.fwdebug_check(3, 'PFWBLOCK_DEBUG'):
-                        miscutils.fwdebug_print("sublists.keys() = %s" % (sublists.keys()))
+                        miscutils.fwdebug_print(f"sublists.keys() = {list(sublists.keys())}")
                 loopvals = pfwblock.get_wrapper_loopvals(config, modname)
                 wrapinst = pfwblock.create_wrapper_inst(config, modname, loopvals)
                 wcnt = 1
                 for winst in wrapinst.values():
                     if miscutils.fwdebug_check(6, 'PFWBLOCK_DEBUG'):
-                        miscutils.fwdebug_print("winst %d - BEG" % wcnt)
+                        miscutils.fwdebug_print(f"winst {wcnt:d} - BEG")
                     pfwblock.assign_data_wrapper_inst(config, modname, winst, masterdata,
                                                       sublists, infsect, outfsect)
                     pfwblock.finish_wrapper_inst(config, modname, winst, outfsect)
                     tempfiles = pfwblock.create_module_wrapper_wcl(config, modname, winst)
                     for fl in tempfiles['infiles']:
-                        if fl not in filelist['infiles'].keys():
+                        if fl not in filelist['infiles']:
                             filelist['infiles'][fl] = num
 
                     for fl in tempfiles['outfiles']:
@@ -120,7 +117,7 @@ def begblock(argv):
             modules_prev_in_list[modname] = True
 
             if miscutils.fwdebug_check(9, 'PFWBLOCK_DEBUG') and modname in masterdata:
-                with open('%s-masterdata.txt' % modname, 'w') as fh:
+                with open(f"{modname}-masterdata.txt", 'w') as fh:
                     miscutils.pretty_print_dict(masterdata[modname], fh)
         config['maxthread_used'] = maxthread
         scriptfile = pfwblock.write_runjob_script(config)
@@ -128,16 +125,16 @@ def begblock(argv):
         intersect = list(set(filelist['infiles'].keys()) & set(filelist['outfiles'].keys()))
         finallist = []
 
-        for fl in filelist['infiles'].keys():
+        for fl in filelist['infiles']:
             if fl not in intersect:
                 finallist.append(fl)
             else:
                 if filelist['infiles'][fl] <= filelist['outfiles'][fl]:
-                    raise Exception('Input file %s requested before it is generated.' % (fl))
+                    raise Exception(f"Input file {fl} requested before it is generated.")
 
         if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
             missingfiles = dbh.check_files(config, finallist)
-            if len(missingfiles) > 0:
+            if missingfiles:
                 raise Exception("The following input files cannot be found in the archive:" + ",".join(missingfiles))
         miscutils.fwdebug_print("Creating job files - BEG")
         for jobkey, jobdict in sorted(joblist.items()):
@@ -145,10 +142,10 @@ def begblock(argv):
             jobdict['jobkeys'] = jobkey
             jobdict['numexpwrap'] = len(jobdict['tasks'])
             if miscutils.fwdebug_check(6, 'PFWBLOCK_DEBUG'):
-                miscutils.fwdebug_print("jobnum = %s, jobkey = %s:" % (jobkey, jobdict['jobnum']))
+                miscutils.fwdebug_print(f"jobnum = {jobdict['jobnum']}, jobkey = {jobkey}:")
             jobdict['tasksfile'] = write_workflow_taskfile(config, jobdict['jobnum'],
                                                            jobdict['tasks'])
-            if (len(jobdict['inlist']) > 0 and
+            if (jobdict['inlist'] and
                     config.getfull(pfwdefs.USE_HOME_ARCHIVE_OUTPUT) != 'never' and
                     'submit_files_mvmt' in config and
                     (pfwdefs.PF_DRYRUN not in config or
@@ -174,8 +171,8 @@ def begblock(argv):
                 dbh.insert_job(config, jobdict)
             pfwblock.write_jobwcl(config, jobkey, jobdict)
             if ('glidein_use_wall' in config and
-                miscutils.convertBool(config.getfull('glidein_use_wall')) and
-                'jobwalltime' in config):
+                    miscutils.convertBool(config.getfull('glidein_use_wall')) and
+                    'jobwalltime' in config):
                 jobdict['wall'] = config['jobwalltime']
 
 
@@ -184,19 +181,6 @@ def begblock(argv):
         numjobs = len(joblist)
         if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
             dbh.update_block_numexpjobs(config, numjobs)
-
-        #if miscutils.fwdebug_check(6, 'PFWBLOCK_DEBUG'):
-        #    miscutils.fwdebug_print("inputfiles: %s, %s" % (type(inputfiles), inputfiles))
-        #    miscutils.fwdebug_print("outputfiles: %s, %s" % (type(outputfiles), outputfiles))
-        #files2stage = set(inputfiles) - set(outputfiles)
-        #pfwblock.stage_inputs(config, files2stage)
-
-
-        #if pfwdefs.USE_HOME_ARCHIVE_OUTPUT in config and \
-        #   config.getfull(pfwdefs.USE_HOME_ARCHIVE_OUTPUT).lower() == 'block':
-        #    config['block_outputlist'] = 'potential_outputfiles.list'
-        #    pfwblock.write_output_list(config, outputfiles)
-
 
         dagfile = config.get_filename('jobdag')
         pfwblock.create_jobmngr_dag(config, dagfile, scriptfile, joblist)
@@ -220,7 +204,7 @@ def begblock(argv):
         retval = pfwdefs.PF_EXIT_SUCCESS
     if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
         dbh.end_task(config['task_id']['begblock'], retval, True)
-    miscutils.fwdebug_print("END - exiting with code %s" % retval)
+    miscutils.fwdebug_print(f"END - exiting with code {retval}")
 
     return retval
 
@@ -228,21 +212,22 @@ def begblock(argv):
 def write_workflow_taskfile(config, jobnum, tasks):
     """ Write the list of wrapper executions for a single job to a file """
     taskfile = config.get_filename('jobtasklist', {pfwdefs.PF_CURRVALS:{'jobnum':jobnum},
-                                                   'required': True, intgdefs.REPLACE_VARS: True})
+                                                   'required': True,
+                                                   intgdefs.REPLACE_VARS: True})
     tjpad = pfwutils.pad_jobnum(jobnum)
     miscutils.coremakedirs(tjpad)
-    with open("%s/%s" % (tjpad, taskfile), 'w') as tasksfh:
+    with open(f"{tjpad}/{taskfile}", 'w') as tasksfh:
         for task in sorted(tasks, key=lambda singletask: int(singletask[0])):
-            tasksfh.write("%s, %s, %s, %s, %s\n" % (task[0], task[1], task[2], task[3], task[4]))
+            tasksfh.write(f"{task[0]}, {task[1]}, {task[2]}, {task[3]}, {task[4]}\n")
     return taskfile
 
 
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print "Usage: begblock.py configfile"
+        print("Usage: begblock.py configfile")
         sys.exit(pfwdefs.PF_EXIT_FAILURE)
 
-    print ' '.join(sys.argv)    # print command so can run by hand if needed
+    print(' '.join(sys.argv))    # print command so can run by hand if needed
     sys.stdout.flush()
     sys.exit(begblock(sys.argv[1:]))

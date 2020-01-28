@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # $Id: logpre.py 48056 2019-01-08 19:57:20Z friedel $
 # $Rev:: 48056                            $:  # Revision of last commit.
 # $LastChangedBy:: friedel                $:  # Author of last commit.
@@ -8,8 +8,8 @@
 
 import sys
 import os
-import processingfw.pfwdefs as pfwdefs
 import despymisc.miscutils as miscutils
+import processingfw.pfwdefs as pfwdefs
 from processingfw.pfwlog import log_pfw_event
 import processingfw.pfwconfig as pfwconfig
 from qcframework import Messaging
@@ -20,21 +20,23 @@ def logpre(argv=None):
         argv = sys.argv
 
     default_log = 'logpre.out'
-    debugfh = open(default_log, 'w', 0)
+    debugfh = open(default_log, 'w')
+    outorig = sys.stdout
+    errorig = sys.stderr
     sys.stdout = debugfh
     sys.stderr = debugfh
 
-    print ' '.join(sys.argv) # command line for debugging
+    print(' '.join(sys.argv)) # command line for debugging
 
     if len(argv) < 5:
-        print 'Usage: logpre configfile block subblocktype subblock'
+        print("Usage: logpre configfile block subblocktype subblock")
         debugfh.close()
         return pfwdefs.PF_EXIT_FAILURE
 
-    configfile = sys.argv[1]
-    blockname = sys.argv[2]    # could also be uberctrl
-    subblocktype = sys.argv[3]
-    subblock = sys.argv[4]
+    configfile = argv[1]
+    blockname = argv[2]    # could also be uberctrl
+    subblocktype = argv[3]
+    subblock = argv[4]
 
     # read sysinfo file
     config = pfwconfig.PfwConfig({'wclfile': configfile})
@@ -47,14 +49,16 @@ def logpre(argv=None):
                                        {pfwdefs.PF_CURRVALS: {'subblock': subblock,
                                                               'flabel': '${subblock}_logpre',
                                                               'fsuffix':'out'}})
-    new_log_name = "%s/%s" % (blkdir, new_log_name)
-    miscutils.fwdebug_print("new_log_name = %s" % new_log_name)
+    new_log_name = f"{blkdir}/{new_log_name}"
+    miscutils.fwdebug_print(f"new_log_name = {new_log_name}")
     debugfh.close()
 
-    os.chmod(default_log, 0666)
+    os.chmod(default_log, 0o666)
     os.rename(default_log, new_log_name)
 
-    debugfh.close()
+    #debugfh.close()
+    sys.stdout = outorig
+    sys.stderr = errorig
 
     if 'use_qcf' in config and config['use_qcf']:
         if config.dbh is None:
@@ -74,8 +78,10 @@ def logpre(argv=None):
 
     log_pfw_event(config, blockname, subblock, subblocktype, ['pretask'])
 
-    print "logpre done"
+    print("logpre done")
     debugfh.close()
+    sys.stdout = outorig
+    sys.stderr = errorig
     return pfwdefs.PF_EXIT_SUCCESS
 
 if __name__ == "__main__":

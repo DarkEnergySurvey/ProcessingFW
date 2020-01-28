@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # $Id: genquerydb.py 41243 2016-01-27 17:10:19Z mgower $
 # $Rev:: 41243                            $:  # Revision of last commit.
 # $LastChangedBy:: mgower                 $:  # Author of last commit.
@@ -30,11 +30,11 @@ def main(argv):
     if args.modulename is None:
         raise Exception("Error: Must specify module\n")
 
-    print args.configfile
+    print(args.configfile)
     config = pfwconfig.PfwConfig({'wclfile':args.configfile})
 
     if args.modulename not in config[pfwdefs.SW_MODULESECT]:
-        raise Exception("Error: module '%s' does not exist.\n" % (args.modulename))
+        raise Exception(f"Error: module '{args.modulename}' does not exist.\n")
 
     module_dict = config[pfwdefs.SW_MODULESECT][args.modulename]
 
@@ -46,8 +46,7 @@ def main(argv):
              args.searchname in module_dict[pfwdefs.SW_FILESECT]:
             search_dict = module_dict[pfwdefs.SW_FILESECT][args.searchname]
         else:
-            raise Exception("Error: Could not find either list or file by name %s in module %s\n" % \
-                            (args.searchname, args.modulename))
+            raise Exception(f"Error: Could not find either list or file by name {args.searchname} in module {args.modulename}\n")
     else:
         raise Exception("Error: need to define either list or file or search\n")
 
@@ -70,12 +69,12 @@ def main(argv):
         elif query_run == 'allbutfirstcurrent':
             if 'current' not in config:
                 raise Exception("Internal Error:  Current object doesn't exist\n")
-            elif 'curr_blocknum' not in config['current']:
+            if 'curr_blocknum' not in config['current']:
                 raise Exception("Internal Error:  current->curr_blocknum doesn't exist\n")
-            else:
-                block_num = config['current']['curr_blocknum']
-                if block_num > 0:
-                    fields.append('run')
+
+            block_num = config['current']['curr_blocknum']
+            if block_num > 0:
+                fields.append('run')
 
     query = {}
     qtable = search_dict['query_table']
@@ -91,7 +90,7 @@ def main(argv):
         elif fld in config:
             value = config.getfull(fld)
         else:
-            raise Exception("Error: genquery could not find value for query field %s\n" % (fld))
+            raise Exception(f"Error: genquery could not find value for query field {fld}\n")
 
         value = replfuncs.replace_vars(value, config,
                                        {pfwdefs.PF_CURRVALS: {'modulename': args.modulename},
@@ -99,7 +98,7 @@ def main(argv):
                                         intgdefs.REPLACE_VARS: True,
                                         'expand': True})[0]
         if value is None:
-            raise Exception("Value=None for query field %s\n" % (fld))
+            raise Exception(f"Value=None for query field {fld}\n")
 
         if ',' in value:
             value = miscutils.fwsplit(value)
@@ -159,22 +158,21 @@ def main(argv):
         if 'select_fields' in query[tbl]:
             query[tbl]['select_fields'] = ','.join(query[tbl]['select_fields'])
 
-    if len(archive_names) > 0:
+    if archive_names:
         #query[qtable]['join'] = "%s.filename=file_archive_info.filename" % qtable
         query['file_archive_info'] = {'select_fields': 'compression'}
-        query['file_archive_info']['join'] = "file_archive_info.filename=%s.filename" % qtable
+        query['file_archive_info']['join'] = f"file_archive_info.filename={qtable}.filename"
         query['file_archive_info']['key_vals'] = {'archive_name': ','.join(archive_names)}
 
-    print "Calling gen_file_list with the following query:\n"
+    print("Calling gen_file_list with the following query:\n")
     miscutils.pretty_print_dict(query, out_file=None, sortit=False, indent=4)
-    print "\n\n"
-    dbh = pfwdb.PFWDB(config.getfull('submit_des_services'), 
+    print("\n\n")
+    dbh = pfwdb.PFWDB(config.getfull('submit_des_services'),
                       config.getfull('submit_des_db_section'))
     files = queryutils.gen_file_list(dbh, query)
 
-    if len(files) == 0:
-        raise Exception("genquery: query returned zero results for %s\nAborting\n" % \
-                        args.searchname)
+    if not files:
+        raise Exception(f"genquery: query returned zero results for {args.searchname}\nAborting\n")
 
     ## output list
     lines = queryutils.convert_single_files_to_lines(files)
@@ -183,5 +181,5 @@ def main(argv):
     return 0
 
 if __name__ == "__main__":
-    print ' '.join(sys.argv)
+    print(' '.join(sys.argv))
     sys.exit(main(sys.argv[1:]))
