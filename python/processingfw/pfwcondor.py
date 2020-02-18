@@ -670,7 +670,8 @@ def add2dag(dagfile, cmdopts, attributes, initialdir, debugfh):
     debugfh.write(f"cmd> {cmd}\n")
     process = subprocess.Popen(cmd.split(), shell=False,
                                stdout=debugfh,
-                               stderr=debugfh)
+                               stderr=debugfh,
+                               text=True)
     process.wait()
     stat = process.returncode
     print("stat = ", stat)
@@ -736,7 +737,8 @@ def check_condor(minver):
     try:
         process = subprocess.Popen(cmd.split(), shell=False,
                                    stdout=subprocess.PIPE,
-                                   stderr=subprocess.STDOUT)
+                                   stderr=subprocess.STDOUT,
+                                   text=True)
         if miscutils.fwdebug_check(1, "PFWCONDOR_DEBUG"):
             miscutils.fwdebug_print(f"\t\tTrying {cmd}")
         process.wait()
@@ -751,7 +753,8 @@ def check_condor(minver):
     try:
         process = subprocess.Popen(cmd.split(), shell=False,
                                    stdout=subprocess.PIPE,
-                                   stderr=subprocess.STDOUT)
+                                   stderr=subprocess.STDOUT,
+                                   text=True)
         if miscutils.fwdebug_check(1, "PFWCONDOR_DEBUG"):
             miscutils.fwdebug_print(f"\t\tTrying {cmd}")
 
