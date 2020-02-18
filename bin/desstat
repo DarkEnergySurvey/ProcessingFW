@@ -140,7 +140,7 @@ def print_sorted(attids, orphanids, qjobs, campaign, site, sort):
 ######################################################################
 def print_header():
     """ Print header line """
-    print(f"{'ID':8s} {'T':1s} {'PRJ':3s} {'PIPELINE':-15s} {'CAMPAIGN':-14s} {'RUN':-27s} {'BLOCK':-30s} {'SUBBLOCK':-15s} {'STAT (H/P/R/T)':-17} {'OPERATOR':-8} {'SUBMITSITE':-10s} {'RUNSITE':-30s}")
+    print(f"{'ID':8s} {'T':1s} {'PRJ':3s} {'PIPELINE':15s} {'CAMPAIGN':14s} {'RUN':27s} {'BLOCK':30s} {'SUBBLOCK':15s} {'STAT (H/P/R/T)':17} {'OPERATOR':8} {'SUBMITSITE':10s} {'RUNSITE':30s}")
     print("=" * 170)
 
 ######################################################################
@@ -174,7 +174,7 @@ def print_line(tjid, jobtype, info):
         jid = tjid[tjid.find('-') + 1:]
     else:
         jid = tjid
-    print(f"{jid:8s} {jobtype:1s} {info['project'][:3]:3s} {info['pipeline'][:15]:-15s} {info['campaign'][:14]:-14} {info['run'][:27]:-27} {info['block'][:30]:-30s} {info['subblock'][:15]:-15s} {info['status'][:17]:-17s} {info['operator'][:8]:-8s} {info['submitsite']:-10s} {info['runsite']:-s}")
+    print(f"{jid:8s} {jobtype:1s} {info['project'][:3]:3s} {info['pipeline'][:15]:15s} {info['campaign'][:14]:14} {info['run'][:27]:27} {info['block'][:30]:30s} {info['subblock'][:15]:15s} {info['status'][:17]:17s} {info['operator'][:8]:8s} {info['submitsite']:10s} {info['runsite']:s}")
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))

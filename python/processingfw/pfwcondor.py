@@ -427,13 +427,13 @@ def remote_condor_q(server, timeout, args_str=''):
                                    stdin=subprocess.PIPE,
                                    text=True)
         out = ""
-        buf = os.read(process.stdout.fileno(), 5000)
+        buf = os.read(process.stdout.fileno(), 5000).decode()
 
         if miscutils.fwdebug_check(6, "PFWCONDOR_DEBUG"):
             miscutils.fwdebug_print(buf)
         while process.poll() is None or buf:
             out += buf
-            buf = os.read(process.stdout.fileno(), 5000)
+            buf = os.read(process.stdout.fileno(), 5000).decode()
             if time.time() - starttime > timeout:
                 process.kill()
                 print(f"\nTimed out contacting {server}\n")
@@ -505,12 +505,12 @@ def condor_q(args_str=''):
                                    stderr=subprocess.PIPE,
                                    text=True)
         out = ""
-        buf = os.read(process.stdout.fileno(), 5000)
+        buf = os.read(process.stdout.fileno(), 5000).decode()
         if miscutils.fwdebug_check(6, "PFWCONDOR_DEBUG"):
             miscutils.fwdebug_print(buf)
         while process.poll() is None or buf:
             out += buf
-            buf = os.read(process.stdout.fileno(), 5000)
+            buf = os.read(process.stdout.fileno(), 5000).decode()
             if miscutils.fwdebug_check(6, "PFWCONDOR_DEBUG"):
                 miscutils.fwdebug_print(buf)
     except Exception as err:
@@ -760,12 +760,12 @@ def check_condor(minver):
 
         # must read from pipe or process hangs when condor_q output is long
         out = ""
-        buf = os.read(process.stdout.fileno(), 5000)
+        buf = os.read(process.stdout.fileno(), 5000).decode()
         if miscutils.fwdebug_check(6, "PFWCONDOR_DEBUG"):
             miscutils.fwdebug_print(buf)
         while process.poll() is None or buf:
             out += buf
-            buf = os.read(process.stdout.fileno(), 5000)
+            buf = os.read(process.stdout.fileno(), 5000).decode()
             if miscutils.fwdebug_check(6, "PFWCONDOR_DEBUG"):
                 miscutils.fwdebug_print(buf)
         if process.returncode:
@@ -846,10 +846,10 @@ def condor_rm(args_str=''):
                                    stderr=subprocess.PIPE,
                                    text=True)
         out = ""
-        buf = os.read(process.stdout.fileno(), 5000)
+        buf = os.read(process.stdout.fileno(), 5000).decode()
         while process.poll() is None or buf:
             out += buf
-            buf = os.read(process.stdout.fileno(), 5000)
+            buf = os.read(process.stdout.fileno(), 5000).decode()
 
         if process.returncode != 0:
             print("Cmd = ", condorrm_cmd)

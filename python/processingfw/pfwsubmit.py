@@ -248,19 +248,16 @@ def run_sys_checks():
             pfwcondor.check_condor('7.4.0')
             done = True
         except pfwcondor.CondorException as excpt:
-            print("ERROR")
             print(str(excpt))
             if trycnt < max_tries:
                 print("\nSleeping and then retrying")
                 time.sleep(try_delay)
         except Exception as excpt:
-            print("ERROR")
             raise excpt
 
     if not done and trycnt >= max_tries:
         miscutils.fwdie("Too many errors.  Aborting.", pfwdefs.PF_EXIT_FAILURE)
 
-    print("DONE")
 
 
 ######################################################################
@@ -305,11 +302,9 @@ def create_submitside_dirs(config):
 
     print('\tMaking submit run directory...')
     miscutils.coremakedirs(workdir)
-    print('DONE')
 
     uberdir = config.getfull('uberctrl_dir')
     if miscutils.fwdebug_check(3, 'PFWSUBMIT_DEBUG'):
         miscutils.fwdebug_print(f"uberdir = {uberdir}")
     print('\tMaking submit uberctrl directory...')
     miscutils.coremakedirs(uberdir)
-    print('DONE')

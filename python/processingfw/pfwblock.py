@@ -2402,7 +2402,7 @@ def divide_into_jobs(config, modname, winst, joblist, parlist):
 
         # determine the number of fw threads for this module
         if usefwthreads:
-            global_max_thread = config.getfull('fw_nmaxthread', default=maxthread)
+            global_max_thread = int(config.getfull('fw_nmaxthread', default=maxthread))
             try:
                 mthread = int(config.getfull(pfwdefs.MAX_FWTHREADS, {pfwdefs.PF_CURRVALS: {'curr_module': modname}}, default=1))
                 if mthread is None:
