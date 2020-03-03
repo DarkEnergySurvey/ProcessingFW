@@ -279,7 +279,8 @@ def blockpost(argv=None):
                 # as failed to retrieve the info later
                 for wrapb in wrap_byjob.values():
                     for wrapper in wrapb.values():
-                        if wrapper['parent_task_id'] in jobwrap and jobwrap[wrapper['parent_task_id']]['status'] > wrapper['status']:
+                        if wrapper['parent_task_id'] in jobwrap and jobwrap[wrapper['parent_task_id']]['status'] is not None \
+                           and wrapper['status'] is not None and jobwrap[wrapper['parent_task_id']]['status'] > wrapper['status']:
                             wrapper['status'] = jobwrap[wrapper['parent_task_id']]['status']
 
                 #print "wrap_bymod:", wrap_bymod
