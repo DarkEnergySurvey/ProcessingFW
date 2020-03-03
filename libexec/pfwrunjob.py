@@ -1083,7 +1083,7 @@ def post_wrapper(pfw_dbh, wcl, ins, jobfiles, logfile, exitcode, workdir):
             for sect in ins:
                 for fname in ins[sect]:
                     try:
-                        print("REMOVE %s" % fname)
+                        #print("REMOVE %s" % fname)
                         os.unlink(fname)
                     except FileNotFoundError:
                         pass

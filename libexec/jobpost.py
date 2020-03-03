@@ -47,8 +47,8 @@ def parse_job_output(config, jobnum, dbh=None, retval=None):
                         elif parts[1] == 'condorid':
                             tjobinfo['condor_job_id'] = parts[2]
                         elif parts[1] == 'job_shell_script':
-                            print("parts[2]", parts[2])
-                            print("parts[3]", parts[3])
+                            #print("parts[2]", parts[2])
+                            #print("parts[3]", parts[3])
                             if parts[2] == 'exechost:':
                                 #tjobinfo['target_exec_host'] = parts[3]
                                 tjobinfo_task['exec_host'] = parts[3]
@@ -251,7 +251,7 @@ def jobpost(argv=None):
                 traceback.print_exception(extype, exvalue, trback, file=sys.stdout)
         else:
             print("Warning:  no job condor log file")
-        print("HERE")
+
         if dbh:
             # update job task
             if 'status' not in tjobinfo_task:
@@ -259,14 +259,12 @@ def jobpost(argv=None):
             if 'end_time' not in tjobinfo_task:
                 tjobinfo_task['end_time'] = datetime.now()
             wherevals = {'id': config['task_id']['job'][jobnum]}
-            print(tjobinfo_task)
-            print(wherevals)
+            #print(tjobinfo_task)
+            #print(wherevals)
             dbh.basic_update_row('task', tjobinfo_task, wherevals)
             dbh.commit()
-        print("DONE")
 
     log_pfw_event(config, blockname, jobnum, 'j', ['posttask', retval])
-
 
     # input wcl should already exist in untar form
     if os.path.exists(inputtar):
