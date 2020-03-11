@@ -95,8 +95,7 @@ def write_block_dag(config, blkdir, blockname, debugfh=None):
     """  writes block dag file """
 
     if not debugfh:
-        debugfh = open('/home/friedel/despy3new/debugs', 'w')
-        #debugfh = sys.stderr
+        debugfh = sys.stderr
 
     debugfh.write(f"write_block_dag pwd: {os.getcwd()}\n")
 
