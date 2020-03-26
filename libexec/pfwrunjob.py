@@ -1649,7 +1649,7 @@ def job_workflow(workflow, jobfiles, jbwcl=WCL(), pfw_dbh=None):
                 #print("MULTITHREADED -------------------------------------------------------------")
                 numjobs = len(procs)
                 # set up the thread pool
-                pool = mp.Pool(processes=nproc, maxtasksperchild=4)
+                pool = mp.Pool(processes=nproc, maxtasksperchild=2)
                 outq = manager.Queue()
                 errq = manager.Queue()
                 with lock_monitor:
