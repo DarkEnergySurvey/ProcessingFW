@@ -1,9 +1,4 @@
 #!/usr/bin/env python3
-# $Id: pfwrunjob.py 48552 2019-05-20 19:38:27Z friedel $
-# $Rev:: 48552                            $:  # Revision of last commit.
-# $LastChangedBy:: friedel                $:  # Author of last commit.
-# $LastChangedDate: 2019-04-05 12:01:17 #$:  # Date of last commit.
-
 # pylint: disable=print-statement
 
 """ Executes a series of wrappers within a single job """
@@ -1526,6 +1521,8 @@ def results_checker(result):
     global terminating
     try:
         (res, jobf, wcl, usage, wrapnum, pid) = result
+        if miscutils.fwdebug_check(6, 'PFWRUNJOB_RESULTS'):
+            miscutils.fwdebug_print("CHECKING  Wrapper %d  %d "% (int(wrapnum), res))
         #print("CHECKING  %d  %d ====================================="% (int(wrapnum), res))
         jobfiles_global['outfullnames'].extend(jobf['outfullnames'])
         jobfiles_global['output_putinfo'].update(jobf['output_putinfo'])
@@ -1579,14 +1576,31 @@ def results_checker(result):
                                   limit=4, file=sys.stdout)
         results.append(1)
     finally:
+        if miscutils.fwdebug_check(6, 'PFWRUNJOB_RESULTS'):
+            miscutils.fwdebug_print("CHECKING  %d  lock "% (int(wrapnum)))
+
         if not result_lock.acquire(False):
+            if miscutils.fwdebug_check(6, 'PFWRUNJOB_RESULTS'):
+                miscutils.fwdebug_print("CHECKING  %d  acquired lock "% (int(wrapnum)))
             result_lock.release()
+            if miscutils.fwdebug_check(6, 'PFWRUNJOB_RESULTS'):
+                miscutils.fwdebug_print("CHECKING  %d release lock "% (int(wrapnum)))
             lock_monitor.acquire()
+            if miscutils.fwdebug_check(6, 'PFWRUNJOB_RESULTS'):
+                miscutils.fwdebug_print("CHECKING  %d  monitor lock "% (int(wrapnum)))
             lock_monitor.notify_all()
+            if miscutils.fwdebug_check(6, 'PFWRUNJOB_RESULTS'):
+                miscutils.fwdebug_print("CHECKING  %d  notify "% (int(wrapnum)))
             lock_monitor.release()
+            if miscutils.fwdebug_check(6, 'PFWRUNJOB_RESULTS'):
+                miscutils.fwdebug_print("CHECKING  %d  released monitor lock "% (int(wrapnum)))
         else:
             result_lock.release()
+            if miscutils.fwdebug_check(6, 'PFWRUNJOB_RESULTS'):
+                miscutils.fwdebug_print("CHECKING  %d  release lock "% (int(wrapnum)))
+
         donejobs += 1
+
         #print('DONE  %d    %d' % (int(wrapnum), donejobs))
 
 ######################################################################
@@ -1649,7 +1663,7 @@ def job_workflow(workflow, jobfiles, jbwcl=WCL(), pfw_dbh=None):
                 #print("MULTITHREADED -------------------------------------------------------------")
                 numjobs = len(procs)
                 # set up the thread pool
-                pool = mp.Pool(processes=nproc, maxtasksperchild=2)
+                pool = mp.Pool(processes=nproc, maxtasksperchild=1)
                 outq = manager.Queue()
                 errq = manager.Queue()
                 with lock_monitor:
