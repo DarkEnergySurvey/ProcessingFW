@@ -1171,7 +1171,9 @@ def write_jobwcl(config, jobkey, jobdict):
     for modname in modulelist:
         if modname in jobdict['parlist']:
             fwgroups[f'g{gnum:04d}'] = {'wrapnums': ','.join(jobdict['parlist'][modname]['wrapnums']),
-                                        'fw_nthread': jobdict['parlist'][modname]['fw_nthread']}
+                                        'fw_nthread': jobdict['parlist'][modname]['fw_nthread'],
+                                        'fw_thread_reuse': jobdict['parlist'][modname]['fw_thread_reuse']}
+                                        }
             gnum += 1
 
     jobwcl = WCL({'pfw_attempt_id': config['pfw_attempt_id'],
@@ -2393,7 +2395,8 @@ def divide_into_jobs(config, modname, winst, joblist, parlist):
 
     if modname not in joblist[key]['parlist']:
         joblist[key]['parlist'][modname] = {'wrapnums': [],
-                                            'fw_nthread': pfwdefs.MAX_FWTHREADS_DEFAULT}
+                                            'fw_nthread': pfwdefs.MAX_FWTHREADS_DEFAULT,
+                                            'fw_thread_reuse': pfwdefs.FWTHREADS_REUSE_DEFAULT}
 
         # check whether supposed to use FW multithreading  (check master on/off switch)
         usefwthreads = pfwdefs.MASTER_USE_FWTHREADS_DEFAULT
