@@ -1652,6 +1652,10 @@ def job_workflow(workflow, jobfiles, jbwcl=WCL(), pfw_dbh=None):
             results = []   # the results of running each task in the group
             # get the maximum number of parallel processes to run at a time
             nproc = int(jbwcl["fw_groups"][task]["fw_nthread"])
+            reuse_count = int(jbwcl["fw_groups"][task]['fw_thread_reuse'])
+            if miscutils.fwdebug_check(6, 'PFWRUNJOB_RESULTS'):
+                miscutils.fwdebug_print("REUSE COUNT "% (reuse_count))
+
             procs = miscutils.fwsplit(jbwcl["fw_groups"][task]["wrapnums"])
             tempproc = []
             # pare down the list to include only those in this run
@@ -1663,7 +1667,7 @@ def job_workflow(workflow, jobfiles, jbwcl=WCL(), pfw_dbh=None):
                 #print("MULTITHREADED -------------------------------------------------------------")
                 numjobs = len(procs)
                 # set up the thread pool
-                pool = mp.Pool(processes=nproc, maxtasksperchild=1)
+                pool = mp.Pool(processes=nproc, maxtasksperchild=reuse_count)
                 outq = manager.Queue()
                 errq = manager.Queue()
                 with lock_monitor:
