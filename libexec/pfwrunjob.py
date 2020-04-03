@@ -1654,7 +1654,7 @@ def job_workflow(workflow, jobfiles, jbwcl=WCL(), pfw_dbh=None):
             nproc = int(jbwcl["fw_groups"][task]["fw_nthread"])
             reuse_count = int(jbwcl["fw_groups"][task]['fw_thread_reuse'])
             if miscutils.fwdebug_check(6, 'PFWRUNJOB_RESULTS'):
-                miscutils.fwdebug_print("REUSE COUNT "% (reuse_count))
+                miscutils.fwdebug_print("REUSE COUNT %d"% (reuse_count))
 
             procs = miscutils.fwsplit(jbwcl["fw_groups"][task]["wrapnums"])
             tempproc = []
