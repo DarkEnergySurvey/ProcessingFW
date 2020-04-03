@@ -2414,7 +2414,7 @@ def divide_into_jobs(config, modname, winst, joblist, parlist):
                 if miscutils.fwdebug_check(6, 'PFWBLOCK_DEBUG'):
                     miscutils.fwdebug_print(f"{pfwdefs.MAX_FWTHREADS} not found for module {modname}, defaulting to {pfwdefs.MAX_FWTHREADS_DEFAULT}")
         joblist[key]['parlist'][modname]['fw_nthread'] = maxthread
-
+        joblist[key]['parlist'][modname]['fw_thread_reuse'] = int(config.getfull('fwthread_reuse', default=pfwdefs.FWTHREADS_REUSE_DEFAULT))
     joblist[key]['parlist'][modname]['wrapnums'].append(winst[pfwdefs.PF_WRAPNUM])
 
     joblist[key]['tasks'].append([winst[pfwdefs.PF_WRAPNUM], winst['wrappername'], winst['inputwcl'], winst['wrapdebug'], winst['log']])

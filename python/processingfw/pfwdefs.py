@@ -51,6 +51,7 @@ MASTER_USE_FWTHREADS = 'master_use_fwthreads'
 MASTER_USE_FWTHREADS_DEFAULT = False
 MAX_FWTHREADS = 'max_fwthreads'
 MAX_FWTHREADS_DEFAULT = 1
+FWTHREADS_REUSE_DEFAULT = 4
 
 CREATE_JUNK_TARBALL = 'create_junk_tarball'
 STAGE_FILES = 'stagefiles'
