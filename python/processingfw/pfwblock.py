@@ -1172,7 +1172,7 @@ def write_jobwcl(config, jobkey, jobdict):
         if modname in jobdict['parlist']:
             fwgroups[f'g{gnum:04d}'] = {'wrapnums': ','.join(jobdict['parlist'][modname]['wrapnums']),
                                         'fw_nthread': jobdict['parlist'][modname]['fw_nthread'],
-                                        'fw_thread_reuse': jobdict['parlist'][modname]['fw_thread_reuse']}
+                                        'fw_thread_reuse': jobdict['parlist'][modname]['fw_thread_reuse']
                                         }
             gnum += 1
 
