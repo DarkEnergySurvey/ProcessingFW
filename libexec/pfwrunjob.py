@@ -2192,5 +2192,6 @@ def get_semaphore(wcl, stype, dest, trans_task_id, pfw_dbh):
 
 if __name__ == '__main__':
     os.environ['PYTHONUNBUFFERED'] = 'true'
+    mp.set_start_method('spawn')
     print(f"Cmdline given: {' '.join(sys.argv)}")
     sys.exit(run_job(parse_args(sys.argv[1:])))
