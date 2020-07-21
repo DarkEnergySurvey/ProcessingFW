@@ -120,6 +120,7 @@ def blockpost(argv=None):
 
     msg2 = ""
     dbh = None
+    qdbh = None
     job_byblk = {}
     wrap_byjob = {}
     wrapinfo = {}
