@@ -42,6 +42,7 @@ def begblock(argv):
         os.environ['DES_DB_SECTION'] = submit_des_db_section
 
     dbh = None
+    doMirror = False
     blktid = -1
     if miscutils.fwdebug_check(3, 'PFWBLOCK_DEBUG'):
         miscutils.fwdebug_print(f"blknum = {config[pfwdefs.PF_BLKNUM]}")
@@ -50,6 +51,9 @@ def begblock(argv):
             dbh = pfwdb.PFWDB(submit_des_services, submit_des_db_section)
         else:
             dbh = config.dbh
+        if config.get(pfwdefs.SQLITE_FILE) is not None:
+            doMirror = True
+            dbh.activateMirror(config)
         dbh.insert_block(config)
         blktid = config['task_id']['block'][str(blknum)]
         config['task_id']['begblock'] = dbh.create_task(name='begblock',
@@ -59,6 +63,14 @@ def begblock(argv):
                                                         label=None,
                                                         do_begin=True,
                                                         do_commit=True)
+        if doMirror:
+            dbh.mirror.basic_insert_row('task', {'name': 'begblock',
+                                                 'info_table': None,
+                                                 'parent_task_id': blktid,
+                                                 'root_task_id': int(config['task_id']['attempt']),
+                                                 'label': None,
+                                                 'id': config['task_id']['begblock']})
+            dbh.mirror.begin_task(config['task_id']['begblock'])
 
     try:
         modulelist = miscutils.fwsplit(config.getfull(pfwdefs.SW_MODULELIST).lower())
@@ -136,7 +148,10 @@ def begblock(argv):
             missingfiles = dbh.check_files(config, finallist)
             if missingfiles:
                 raise Exception("The following input files cannot be found in the archive:" + ",".join(missingfiles))
+
         miscutils.fwdebug_print("Creating job files - BEG")
+        parsemask = miscutils.CU_PARSE_PATH | miscutils.CU_PARSE_FILENAME | miscutils.CU_PARSE_COMPRESSION
+
         for jobkey, jobdict in sorted(joblist.items()):
             jobdict['jobnum'] = pfwutils.pad_jobnum(config.inc_jobnum())
             jobdict['jobkeys'] = jobkey
@@ -162,6 +177,9 @@ def begblock(argv):
                                                          archive_info)
                 # save file information
                 filemgmt.register_file_data('list', jobdict['inlist'], config['pfw_attempt_id'], attempt_tid, False, None, None)
+                if doMirror:
+                    (_, fname, _) = miscutils.parse_fullname(jobdict['inlist'], parsemask)
+                    finallist.append(fname)
                 pfwblock.copy_input_lists_home_archive(config, filemgmt,
                                                        archive_info, jobdict['inlist'])
                 filemgmt.commit()
@@ -175,6 +193,8 @@ def begblock(argv):
                     'jobwalltime' in config):
                 jobdict['wall'] = config['jobwalltime']
 
+        if doMirror:
+            dbh.updateMirrorFiles(finallist)
 
         miscutils.fwdebug_print("Creating job files - END")
 
@@ -191,6 +211,9 @@ def begblock(argv):
         if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
             dbh.end_task(config['task_id']['begblock'], retval, True)
             dbh.end_task(blktid, retval, True)
+            if doMirror:
+                dbh.mirror.end_task(config['task_id']['begblock'], retval, True)
+                dbh.mirror.end_task(blktid, retval, True)
         raise
 
     # save config, have updated jobnum, wrapnum, etc
@@ -204,6 +227,10 @@ def begblock(argv):
         retval = pfwdefs.PF_EXIT_SUCCESS
     if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
         dbh.end_task(config['task_id']['begblock'], retval, True)
+        if doMirror:
+            dbh.mirror.end_task(config['task_id']['begblock'], retval, True)
+            dbh.mirror.commit()
+            dbh.mirror.close()
     miscutils.fwdebug_print(f"END - exiting with code {retval}")
 
     return retval

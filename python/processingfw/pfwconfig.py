@@ -157,7 +157,9 @@ class PfwConfig(WCL):
             submit_epoch = time.time()
             submit_time = time.strftime("%Y%m%d%H%M%S", time.localtime(submit_epoch))
             self['submit_time'] = submit_time
-
+        if 'sqlite' in self['target_des_db_section'].lower():
+            self[pfwdefs.SQLITE_FILE] = replfuncs.replace_vars_single("${unitname}_r${reqnum}p${attnum:2}",
+                                                                      self, None)
         self['submit_epoch'] = submit_epoch
         self[pfwdefs.PF_JOBNUM] = '0'
         self[pfwdefs.PF_BLKNUM] = '1'

@@ -174,6 +174,9 @@ PF_BLKNUM = 'blknum'
 PF_CURRVALS = 'currentvals'
 PF_VERIFY_FILES = 'verify_files'
 
+SQLITE_FILE = 'sqlite_file'
+SQLITE_DEFAULT_FILE = 'sqldefault.db'
+
 
 PFWDB_MSG_ERROR = 1
 PFWDB_MSG_WARN = 2

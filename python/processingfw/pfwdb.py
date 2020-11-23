@@ -17,6 +17,8 @@ __version__ = "$Rev: 48552 $"
 
 import os
 import socket
+from copy import deepcopy
+import shutil
 import sys
 from datetime import datetime
 import collections
@@ -39,12 +41,21 @@ class PFWDB(desdmdbi.DesDmDbi):
         filetypes and to ingest metadata associated with those headers.
     """
 
-    def __init__(self, desfile=None, section=None, threaded=False):
+    def __init__(self, desfile=None, section=None, threaded=False, mirror=False):
         """ Initialize object """
         if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
             miscutils.fwdebug_print(f"{desfile},{section}")
 
         desdmdbi.DesDmDbi.__init__(self, desfile, section, threaded=threaded)
+        self.desfile = desfile
+        self.mirror = None
+
+    def activateMirror(self, config):
+        if self.mirror is None:
+            os.environ[desdmdbi.dmdbdefs.DES_SQLITE_FILE] = f"{config[pfwdefs.SQLITE_FILE]}_B{config[pfwdefs.PF_BLKNUM]:%2d}.db"
+            shutil.copyfile(os.path.join(os.environ['PROCESSINGFW_DIR'], pfwdefs.SQLITE_DEFAULT_FILE),
+                            os.path.join(config['block_dir'], config[pfwdefs.SQLITE_FILE]))
+            self.mirror = desdmdbi.DesDmDbi(self.desfile, config['target_des_db_section'])
 
     def get_database_defaults(self):
         """ Grab default configuration information stored in database """
@@ -350,6 +361,15 @@ class PFWDB(desdmdbi.DesDmDbi):
                }
         self.begin_task(row['task_id'])
         self.insert_PFW_row('PFW_BLOCK', row)
+        if self.mirror is not None:
+            slrow = deepcopy(row)
+            slrow['info_table'] = 'pfw_block'
+            slrow['parent_task_id'] = int(config['task_id']['attempt'])
+            slrow['root_task_id'] = int(config['task_id']['attempt'])
+            self.mirror.basic_insert_row('task', slrow)
+            self.mirror.begin_task(row['task_id'])
+            self.mirror.basic_insert_row('PFW_BLOCK', row)
+            self.mirror.commit()
 
         config['task_id']['block'][str(row['blknum'])] = row['task_id']
 
@@ -362,6 +382,8 @@ class PFWDB(desdmdbi.DesDmDbi):
         wherevals = {'task_id': config['task_id']['block'][config[pfwdefs.PF_BLKNUM]]}
 
         self.update_PFW_row('PFW_BLOCK', updatevals, wherevals)
+        if self.mirror is not None:
+            self.mirror.update_PFW_row('PFW_BLOCK', updatevals, wherevals)
 
 
     ##### JOB #####
@@ -1027,3 +1049,23 @@ class PFWDB(desdmdbi.DesDmDbi):
                 missingfiles.append(res[0])
 
         return missingfiles
+
+    def updateMirrorFiles(self, filelist):
+        if self.mirror is None:
+            return
+        curs = self.cursor()
+        gtt = self.load_filename_gtt(filelist)
+        curs.execute(f"select * from file_archive_info fai, {gtt} gtt where gtt.filename=fai.filename")
+        results = curs.fetchall()
+        cols = [desc[0].lower() for desc in curs.description]
+        mcurs = self.mirror.cursor()
+        binds = ['?'] * len(cols)
+        mcurs.executemany(f"insert into file_archive_info ({','.join(cols)}) values ({','.join(binds)})", results)
+        cur.execute(f"select * from desfile df, {gtt} gtt where gtt.filename=df.filename")
+        results = curs.fetchall()
+        cols = [desc[0].lower() for desc in curs.description]
+        binds = ['?'] * len(cols)
+        mcurs.executemany(f"insert into desfile ({','.join(cols)}) values ({','.join(binds)})", results)
+        mcurs.close()
+        self.mirror.commit()
+

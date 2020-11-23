@@ -2390,6 +2390,9 @@ def divide_into_jobs(config, modname, winst, joblist, parlist):
     if key not in joblist:
         #joblist[key] = {'tasks':[], 'inwcl':[], 'inlist':[], 'wrapinputs':OrderedDict(), 'parlist':{}}
         joblist[key] = {'tasks':[], 'inwcl':[], 'inlist':[], 'parlist':{}}
+        if config.get(pfwdefs.SQLITE_FILE) is not None:
+            joblist[key][pfwdefs.SQLITE_FILE] = f"{config[pfwdefs.SQLITE_FILE]}_B{config[pfwdefs.PF_BLKNUM]:%2d}.db"
+
 
     maxthread = pfwdefs.MAX_FWTHREADS_DEFAULT
 
@@ -2748,12 +2751,18 @@ def create_jobmngr_dag(config, dagfile, scriptfile, joblist):
             dagfh.write(f"VARS {tjpad} jobnum=\"{tjpad}\"\n")
             dagfh.write(f"VARS {tjpad} exec=\"../{scriptfile}\"\n")
             dagfh.write(f"VARS {tjpad} args=\"{jobnum} {jobdict['inputwcltar']} {jobdict['jobwclfile']} {jobdict['tasksfile']} {jobdict['envfile']} {jobdict['outputwcltar']}\"\n")
-            dagfh.write(f"VARS {tjpad} transinput=\"{jobdict['inputwcltar']},{jobdict['jobwclfile']},{jobdict['tasksfile']},jobpost_{tjpad}.sh\"\n")
+            dagfh.write(f"VARS {tjpad} transinput=\"{jobdict['inputwcltar']},{jobdict['jobwclfile']},{jobdict['tasksfile']},jobpost_{tjpad}.sh")
+            if pfwdefs.SQLITE_FILE in jobdict:
+                dagfh.write(f",{jobdict[pfwdefs.SQLITE_FILE]}")
+            dagfh.write("\"\n")
             if 'wall' in jobdict:
                 dagfh.write(f"VARS {tjpad} wall=\"{jobdict['wall']}\"\n")
 
             if use_condor_transfer_output:
-                dagfh.write(f"VARS {tjpad} transoutput=\"{jobdict['outputwcltar']},{jobdict['envfile']}\"\n")
+                dagfh.write(f"VARS {tjpad} transoutput=\"{jobdict['outputwcltar']},{jobdict['envfile']}")
+            if pfwdefs.SQLITE_FILE in jobdict:
+                dagfh.write(f",{jobdict[pfwdefs.SQLITE_FILE]}")
+            dagfh.write("\"\n")
             dagfh.write(f"SCRIPT pre {tjpad} {pfwdir}/libexec/jobpre.py ../uberctrl/config.des $JOB\n")
             dagfh.write(f"SCRIPT post {tjpad} {tjpad}/jobpost_{tjpad}.sh $RETURN\n")
             with open(f"{tjpad}/jobpost_{tjpad}.sh", 'w') as jpostfh:
