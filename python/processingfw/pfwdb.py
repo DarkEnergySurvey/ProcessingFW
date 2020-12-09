@@ -52,9 +52,10 @@ class PFWDB(desdmdbi.DesDmDbi):
 
     def activateMirror(self, config):
         if self.mirror is None:
-            os.environ[desdmdbi.dmdbdefs.DES_SQLITE_FILE] = f"{config[pfwdefs.SQLITE_FILE]}_B{config[pfwdefs.PF_BLKNUM]:%2d}.db"
-            shutil.copyfile(os.path.join(os.environ['PROCESSINGFW_DIR'], pfwdefs.SQLITE_DEFAULT_FILE),
-                            os.path.join(config['block_dir'], config[pfwdefs.SQLITE_FILE]))
+            sqlite = config.getfull(pfwdefs.SQLITE_FILE)
+            if sqlite is None:
+                raise Exception(f"Cannot create sqlite database if {pfwdefs.SQLITE_FILE} is not defnied in the wcl.")
+            os.environ[desdmdbi.dbdefs.DES_SQLITE_FILE] = config[pfwdefs.SQLITE_FILE]
             self.mirror = desdmdbi.DesDmDbi(self.desfile, config['target_des_db_section'])
 
     def get_database_defaults(self):
@@ -362,11 +363,13 @@ class PFWDB(desdmdbi.DesDmDbi):
         self.begin_task(row['task_id'])
         self.insert_PFW_row('PFW_BLOCK', row)
         if self.mirror is not None:
-            slrow = deepcopy(row)
-            slrow['info_table'] = 'pfw_block'
-            slrow['parent_task_id'] = int(config['task_id']['attempt'])
-            slrow['root_task_id'] = int(config['task_id']['attempt'])
-            self.mirror.basic_insert_row('task', slrow)
+            trow = {'name': 'block',
+                    'info_table': 'pfw_block',
+                    'parent_task_id': int(config['task_id']['attempt']),
+                    'root_task_id': int(config['task_id']['attempt']),
+                    'id': row['task_id']
+                    }
+            self.mirror.basic_insert_row('task', trow)
             self.mirror.begin_task(row['task_id'])
             self.mirror.basic_insert_row('PFW_BLOCK', row)
             self.mirror.commit()
@@ -383,7 +386,8 @@ class PFWDB(desdmdbi.DesDmDbi):
 
         self.update_PFW_row('PFW_BLOCK', updatevals, wherevals)
         if self.mirror is not None:
-            self.mirror.update_PFW_row('PFW_BLOCK', updatevals, wherevals)
+            self.mirror.basic_update_row('PFW_BLOCK', updatevals, wherevals)
+            self.mirror.commit()
 
 
     ##### JOB #####
@@ -1055,16 +1059,29 @@ class PFWDB(desdmdbi.DesDmDbi):
             return
         curs = self.cursor()
         gtt = self.load_filename_gtt(filelist)
-        curs.execute(f"select * from file_archive_info fai, {gtt} gtt where gtt.filename=fai.filename")
+        curs.execute(f"select fai.filename, fai.archive_name, fai.path, fai.compression, fai.desfile_id from file_archive_info fai, {gtt} gtt where gtt.filename=fai.filename")
         results = curs.fetchall()
         cols = [desc[0].lower() for desc in curs.description]
         mcurs = self.mirror.cursor()
         binds = ['?'] * len(cols)
-        mcurs.executemany(f"insert into file_archive_info ({','.join(cols)}) values ({','.join(binds)})", results)
-        cur.execute(f"select * from desfile df, {gtt} gtt where gtt.filename=df.filename")
+        for line in results:
+            #print('--' + str(line) + '--')
+            ll = "'" + line[0] + "','" + line[1] + "','" + line[2]
+            if line[3] is not None:
+                ll += "','" + line[3] + "',"
+            else:
+                ll += "',NULL,"
+            ll += str(line[4])
+            try:
+                mcurs.execute(f"insert into file_archive_info ({','.join(cols)}) values ({ll})")
+                print(line)
+            except:
+                pass
+        #mcurs.executemany(f"insert into file_archive_info ({','.join(cols)}) values ({','.join(binds)})", results)
+        curs.execute(f"select df.* from desfile df, {gtt} gtt where gtt.filename=df.filename")
         results = curs.fetchall()
         cols = [desc[0].lower() for desc in curs.description]
-        binds = ['?'] * len(cols)
+        #binds = ['?'] * len(cols)
         mcurs.executemany(f"insert into desfile ({','.join(cols)}) values ({','.join(binds)})", results)
         mcurs.close()
         self.mirror.commit()

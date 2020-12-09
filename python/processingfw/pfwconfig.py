@@ -158,7 +158,7 @@ class PfwConfig(WCL):
             submit_time = time.strftime("%Y%m%d%H%M%S", time.localtime(submit_epoch))
             self['submit_time'] = submit_time
         if 'sqlite' in self['target_des_db_section'].lower():
-            self[pfwdefs.SQLITE_FILE] = replfuncs.replace_vars_single("${unitname}_r${reqnum}p${attnum:2}",
+            self[pfwdefs.SQLITE_FILE] = replfuncs.replace_vars_single("${unitname}_r${reqnum}p${attnum:2}.db",
                                                                       self, None)
         self['submit_epoch'] = submit_epoch
         self[pfwdefs.PF_JOBNUM] = '0'
@@ -487,7 +487,7 @@ class PfwConfig(WCL):
         else:
             miscutils.fwdebug_print(f"{pfwdefs.SW_FILEPATSECT} keys: {list(self[pfwdefs.SW_FILEPATSECT].keys())}")
             print("searchopts =", searchopts)
-            miscutils.fwdie("Error: Could not find value for filename pattern '{filepat}' in file pattern section", pfwdefs.PF_EXIT_FAILURE, 2)
+            miscutils.fwdie(f"Error: Could not find value for filename pattern '{filepat}' in file pattern section", pfwdefs.PF_EXIT_FAILURE, 2)
 
         if searchopts is not None:
             searchopts['required'] = origreq

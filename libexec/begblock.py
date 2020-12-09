@@ -9,6 +9,7 @@
 import sys
 import os
 import collections
+import shutil
 
 import despymisc.miscutils as miscutils
 import intgutils.intgdefs as intgdefs
@@ -53,6 +54,9 @@ def begblock(argv):
             dbh = config.dbh
         if config.get(pfwdefs.SQLITE_FILE) is not None:
             doMirror = True
+            shutil.copyfile(os.path.join(os.environ['PROCESSINGFW_DIR'], pfwdefs.SQLITE_DEFAULT_FILE),
+                            os.path.join(config['block_dir'], config[pfwdefs.SQLITE_FILE]))
+            os.environ['run_dir'] = config['block_dir']
             dbh.activateMirror(config)
         dbh.insert_block(config)
         blktid = config['task_id']['block'][str(blknum)]
@@ -178,8 +182,9 @@ def begblock(argv):
                 # save file information
                 filemgmt.register_file_data('list', jobdict['inlist'], config['pfw_attempt_id'], attempt_tid, False, None, None)
                 if doMirror:
-                    (_, fname, _) = miscutils.parse_fullname(jobdict['inlist'], parsemask)
-                    finallist.append(fname)
+                    for fullnm in jobdict['inlist']:
+                        (_, fname, _) = miscutils.parse_fullname(fullnm, parsemask)
+                        finallist.append(fname)
                 pfwblock.copy_input_lists_home_archive(config, filemgmt,
                                                        archive_info, jobdict['inlist'])
                 filemgmt.commit()
@@ -193,8 +198,8 @@ def begblock(argv):
                     'jobwalltime' in config):
                 jobdict['wall'] = config['jobwalltime']
 
-        if doMirror:
-            dbh.updateMirrorFiles(finallist)
+        #if doMirror:
+        #    dbh.updateMirrorFiles(finallist)
 
         miscutils.fwdebug_print("Creating job files - END")
 
