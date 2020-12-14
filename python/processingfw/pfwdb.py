@@ -17,8 +17,6 @@ __version__ = "$Rev: 48552 $"
 
 import os
 import socket
-from copy import deepcopy
-import shutil
 import sys
 from datetime import datetime
 import collections
@@ -41,7 +39,7 @@ class PFWDB(desdmdbi.DesDmDbi):
         filetypes and to ingest metadata associated with those headers.
     """
 
-    def __init__(self, desfile=None, section=None, threaded=False, mirror=False):
+    def __init__(self, desfile=None, section=None, threaded=False):
         """ Initialize object """
         if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
             miscutils.fwdebug_print(f"{desfile},{section}")
@@ -57,6 +55,7 @@ class PFWDB(desdmdbi.DesDmDbi):
                 raise Exception(f"Cannot create sqlite database if {pfwdefs.SQLITE_FILE} is not defnied in the wcl.")
             os.environ[desdmdbi.dbdefs.DES_SQLITE_FILE] = config[pfwdefs.SQLITE_FILE]
             self.mirror = desdmdbi.DesDmDbi(self.desfile, config['target_des_db_section'])
+            self.setupMirror()
 
     def get_database_defaults(self):
         """ Grab default configuration information stored in database """
@@ -1054,35 +1053,205 @@ class PFWDB(desdmdbi.DesDmDbi):
 
         return missingfiles
 
+
     def updateMirrorFiles(self, filelist):
         if self.mirror is None:
             return
         curs = self.cursor()
         gtt = self.load_filename_gtt(filelist)
-        curs.execute(f"select fai.filename, fai.archive_name, fai.path, fai.compression, fai.desfile_id from file_archive_info fai, {gtt} gtt where gtt.filename=fai.filename")
+        curs.execute(f"select fai.* from file_archive_info fai, {gtt} gtt where gtt.filename=fai.filename")
         results = curs.fetchall()
         cols = [desc[0].lower() for desc in curs.description]
         mcurs = self.mirror.cursor()
         binds = ['?'] * len(cols)
-        for line in results:
-            #print('--' + str(line) + '--')
-            ll = "'" + line[0] + "','" + line[1] + "','" + line[2]
-            if line[3] is not None:
-                ll += "','" + line[3] + "',"
-            else:
-                ll += "',NULL,"
-            ll += str(line[4])
-            try:
-                mcurs.execute(f"insert into file_archive_info ({','.join(cols)}) values ({ll})")
-                print(line)
-            except:
-                pass
-        #mcurs.executemany(f"insert into file_archive_info ({','.join(cols)}) values ({','.join(binds)})", results)
+        mcurs.executemany(f"insert into file_archive_info ({','.join(cols)}) values ({','.join(binds)})", results)
         curs.execute(f"select df.* from desfile df, {gtt} gtt where gtt.filename=df.filename")
         results = curs.fetchall()
         cols = [desc[0].lower() for desc in curs.description]
-        #binds = ['?'] * len(cols)
+        binds = ['?'] * len(cols)
         mcurs.executemany(f"insert into desfile ({','.join(cols)}) values ({','.join(binds)})", results)
         mcurs.close()
         self.mirror.commit()
 
+    def setupMirror(self):
+        tables = ['exclude_list',
+                  'ops_archive',
+                  'ops_transfer',
+                  'ops_transfer_val',
+                  'ops_archive_val',
+                  'ops_datafile_metadata',
+                  'ops_datafile_table',
+                  'ops_data_state_def',
+                  'ops_directory_pattern',
+                  'ops_exec_def',
+                  'ops_filename_pattern',
+                  'ops_filetype',
+                  'ops_filetype_metadata',
+                  'ops_file_header',
+                  'ops_job_file_mvmt',
+                  'ops_job_file_mvmt_val',
+                  'ops_message_filter',
+                  'ops_message_ignore',
+                  'ops_message_pattern',
+                  'ops_metadata',
+                  'ops_site',
+                  'ops_site_val',
+                  'ops_transfer_val',
+                  #'proctag',
+                  #zeropoint',
+                  ]
+        curs = self.cursor()
+        mcurs = self.mirror.cursor()
+        for tbl in tables:
+            curs.execute(f"select * from {tbl}")
+            results = curs.fetchall()
+            cols = [desc[0].lower() for desc in curs.description]
+            binds = ['?'] * len(cols)
+            mcurs.executemany(f"insert into {tbl} ({','.join(cols)}) values ({','.join(binds)})", results)
+        self.mirror.commit()
+        mcurs.close()
+        curs.close()
+
+
+    def integrateMirror(self):
+        depends = 'depends'
+        sequences = 'seq'
+
+        '''calibraion ?
+        catalog N
+        ccdgon Y
+        coadd N
+        coaddtile_geom?
+        coadd_astrom_qa N
+        coadd_exposure_astrom_qa N
+        coadd_object Y (ID, OBJECT_NUMBER, PARENT_NUMBER)
+        coadd_object_extiction Y (COADD_OBJECT_ID)
+        coadd_object_extinction_band Y (COADD_OBJECT_ID)
+        coadd_object_hpix Y (COADD_OBJECT_ID)
+        coadd_object_molygon Y (COADD_OBJECT_ID)
+        compress_task (TASK_ID)
+        desfile Y (ID WGB_TASK_ID)
+        file_archive_info Y (DESFILE_ID)
+        image N
+        miscfile N
+        molygon Y (several)
+        molygon_ccdgon Y (MOLY_NUMBER CCDGON_NUMBER)
+        opm_used Y (TASK_ID DESFILEID)
+        opm_was_derived_from Y (DESFILE_ID)
+        pfw_job ? Y
+        pfw_message Y (TASK_ID)
+        pfw_exec? Y
+        se_object Y (OBJECT_NUMBER)
+        task Y (ID)
+        task_message? Y (TASK_ID)
+        transfer_file Y (TASK_ID)
+        wavg Y (COADD_OBJECT_ID)
+        wavg_oclink Y (COADD_OBJECT_ID)
+        '''
+        tables = collections.OrderedDict({
+            #  tables with no dependencies and no sequences
+            'catalog': {depends: {},
+                        sequences: None},
+            'coadd': {depends: {},
+                      sequences: None},
+            'coadd_astrom_qa': {depends: {},
+                                sequences: None},
+            'coadd_exposure_astrom_qa': {depends: {},
+                                         sequences: None},
+            'se_object': {depends: {},
+                          sequences: None},
+            'image': {depends: {},
+                      sequences: None},
+            'miscfile': {depends: {},
+                         sequences: None},
+            'ccdgon':{depends: {},
+                      sequences: None},
+            'molygon': {depends: {},
+                        sequences: None},
+            'molygon_ccdgon': {depends: {},
+                               sequences: None},
+
+            # tables with dependencies on themselves
+            'task':{depends: {'parent_task_id': ('task', 'id')},
+                    sequences: 'id'},
+
+            # tables with no dependencies and sequences
+            'coadd_object': {depends: {},
+                             sequences: 'id'},
+
+            # tables with both dependencies and sequences
+            'desfile': {depends: {'wgb_task_id': ('task', 'id')},
+                        sequences: 'id'},
+
+            # tables with dependencies and no sequences
+            'coadd_object_extiction': {depends: {'coadd_object_id': ('coadd_object', 'id')},
+                                       sequences: None},
+            'coadd_object_extinction_band': {depends: {'coadd_object_id': ('coadd_object', 'id')},
+                                             sequences: None},
+            'coadd_object_hpix': {depends: {'coadd_object_id': ('coadd_object', 'id')},
+                                  sequences: None},
+            'coadd_object_molygon': {depends: {'coadd_object_id': ('coadd_object', 'id')},
+                                     sequences: None},
+            'compress_task': {depends: {'task_id': ('task', 'id')},
+                              sequences: None},
+            'file_archive_info': {depends: {'desfile_id': ('desfile', 'id')},
+                                  sequences: None},
+            'opm_used': {depends: {'task_id': ('task', 'id'),
+                                   'desfile_id': ('desfile', 'id')},
+                         sequences: None},
+            'opm_was_derived_from' : {depends: {'desfile_id': ('desfile', 'id')},
+                                      sequences: None},
+            'task_message':{depends: {'task_id': ('task', 'id')},
+                            sequences: None},
+            'transfer_batch': {depends: {'task_id': ('task', 'id'),
+                                         'parent_task_id': ('task', 'id')},
+                               sequences: None},
+            'transfer_file': {depends: {'task_id': ('task', 'id'),
+                                        'batch_task_id': ('task', 'id')},
+                              sequences: None},
+            'wavg': {depends: {'coadd_object_id': ('coadd_object', 'id')},
+                     sequences: None},
+            'wavg_oclink': {depends: {'coadd_object_id': ('coadd_object', 'id')},
+                            sequences: None}
+        })
+        dependencies = {}
+        for table, item in tables.items():
+            curs = self.cursor()
+            mcurs = self.mirror.cursor()
+            sql = f"select * from {table}"
+            if item[sequences] is not None:
+                sql += f" order by {item[sequences]} asc"
+            mcurs.execute(sql)
+            results = mcurs.fetchall()
+            if results:
+                cols = [desc[0].lower() for desc in curs.description]
+                binds = ['?'] * len(cols)
+                # if we are modifying the contents then we need to convert to a list of lists
+                if item[sequences] is not None or item[depends]:
+                    r2 = []
+                    for r in results:
+                        r2.append(list(r))
+                    results = r2
+                if item[sequences] is not None:
+                    idx = cols.index(item[sequences])
+                    curs.execute(f"select {table}_seq.nextval from dual connect by level < {len(results) + 1}")
+                    nums = [i[0] for i in curs.fetchall()]
+                    if table not in dependencies:
+                        dependencies[table] = {}
+                    theseq = {}
+                    for i in len(results):
+                        theseq[results[i][idx]] = nums[i]
+                        results[i][idx] = nums[i]
+                    dependencies[table][item[sequences]] = theseq
+                if item[depends]:
+                    for col, (deptable, depcol) in item[depends].items():
+                        idx = cols.index(col)
+                        for i in len(results):
+                            results[i][idx] = dependencies[deptable][depcol][results[i][idx]]
+                binds = []
+                for i in range(1, len(cols) + 1):
+                    binds.append(self.get_named_bind_string(i))
+                curs.executemany(f"insert into {table} ({','.join(cols)}) values ({','.join(binds)})", results)
+                self.commit()
+            curs.close()
+            mcurs.close()
