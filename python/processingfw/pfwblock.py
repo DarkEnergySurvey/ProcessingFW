@@ -1209,9 +1209,9 @@ def write_jobwcl(config, jobkey, jobdict):
         jobwcl['task_id'] = {'attempt': -1,
                              'block': -2,
                              'job': -3}
-    sqlite = config.getfull(dbdefs.DES_SQLITE_FILE)
-    if sqlite is not None:
-        jobwcl[dbdefs.DES_SQLITE_FILE] = sqlite
+
+    if pfwdefs.SQLITE_FILE in jobdict:
+        jobwcl[dbdefs.DES_SQLITE_FILE] = jobdict[pfwdefs.SQLITE_FILE]
 
     (_, create_junk_tarball) = config.search(pfwdefs.CREATE_JUNK_TARBALL, {intgdefs.REPLACE_VARS: True})
     jobwcl[pfwdefs.CREATE_JUNK_TARBALL] = miscutils.convertBool(create_junk_tarball)
@@ -2394,7 +2394,7 @@ def divide_into_jobs(config, modname, winst, joblist, parlist):
         #joblist[key] = {'tasks':[], 'inwcl':[], 'inlist':[], 'wrapinputs':OrderedDict(), 'parlist':{}}
         joblist[key] = {'tasks':[], 'inwcl':[], 'inlist':[], 'parlist':{}}
         if config.get(pfwdefs.SQLITE_FILE) is not None:
-            joblist[key][pfwdefs.SQLITE_FILE] = f"{config[pfwdefs.SQLITE_FILE]}_B{int(config[pfwdefs.PF_BLKNUM]):02d}.db"
+            joblist[key][pfwdefs.SQLITE_FILE] = config[pfwdefs.SQLITE_FILE].replace('.db', '-run.db')
 
 
     maxthread = pfwdefs.MAX_FWTHREADS_DEFAULT
@@ -2756,7 +2756,7 @@ def create_jobmngr_dag(config, dagfile, scriptfile, joblist):
             dagfh.write(f"VARS {tjpad} args=\"{jobnum} {jobdict['inputwcltar']} {jobdict['jobwclfile']} {jobdict['tasksfile']} {jobdict['envfile']} {jobdict['outputwcltar']}\"\n")
             dagfh.write(f"VARS {tjpad} transinput=\"{jobdict['inputwcltar']},{jobdict['jobwclfile']},{jobdict['tasksfile']},jobpost_{tjpad}.sh")
             if pfwdefs.SQLITE_FILE in jobdict:
-                dagfh.write(f",{jobdict[pfwdefs.SQLITE_FILE]}")
+                dagfh.write(f",{jobdict[pfwdefs.SQLITE_FILE].replace('-run.db', '.db')}")
             dagfh.write("\"\n")
             if 'wall' in jobdict:
                 dagfh.write(f"VARS {tjpad} wall=\"{jobdict['wall']}\"\n")
