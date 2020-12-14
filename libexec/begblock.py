@@ -164,6 +164,9 @@ def begblock(argv):
                 miscutils.fwdebug_print(f"jobnum = {jobdict['jobnum']}, jobkey = {jobkey}:")
             jobdict['tasksfile'] = write_workflow_taskfile(config, jobdict['jobnum'],
                                                            jobdict['tasks'])
+            sqlite = config.getfull(pfwdefs.SQLITE_FILE)
+            if sqlite is not None:
+                jobdict[pfwdefs.SQLITE_FILE] = sqlite
             if (jobdict['inlist'] and
                     config.getfull(pfwdefs.USE_HOME_ARCHIVE_OUTPUT) != 'never' and
                     'submit_files_mvmt' in config and
@@ -198,8 +201,8 @@ def begblock(argv):
                     'jobwalltime' in config):
                 jobdict['wall'] = config['jobwalltime']
 
-        #if doMirror:
-        #    dbh.updateMirrorFiles(finallist)
+        if doMirror:
+            dbh.updateMirrorFiles(finallist)
 
         miscutils.fwdebug_print("Creating job files - END")
 
@@ -236,6 +239,8 @@ def begblock(argv):
             dbh.mirror.end_task(config['task_id']['begblock'], retval, True)
             dbh.mirror.commit()
             dbh.mirror.close()
+            tjpad = pfwutils.pad_jobnum(jobdict['jobnum'])
+            shutil.move(config[pfwdefs.SQLITE_FILE], f"{tjpad}/{config[pfwdefs.SQLITE_FILE]}")
     miscutils.fwdebug_print(f"END - exiting with code {retval}")
 
     return retval
