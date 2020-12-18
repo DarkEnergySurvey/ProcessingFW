@@ -361,17 +361,17 @@ class PFWDB(desdmdbi.DesDmDbi):
                }
         self.begin_task(row['task_id'])
         self.insert_PFW_row('PFW_BLOCK', row)
-        if self.mirror is not None:
-            trow = {'name': 'block',
-                    'info_table': 'pfw_block',
-                    'parent_task_id': int(config['task_id']['attempt']),
-                    'root_task_id': int(config['task_id']['attempt']),
-                    'id': row['task_id']
-                    }
-            self.mirror.basic_insert_row('task', trow)
-            self.mirror.begin_task(row['task_id'])
-            self.mirror.basic_insert_row('PFW_BLOCK', row)
-            self.mirror.commit()
+        #if self.mirror is not None:
+        #    trow = {'name': 'block',
+        #            'info_table': 'pfw_block',
+        #            'parent_task_id': int(config['task_id']['attempt']),
+        #            'root_task_id': int(config['task_id']['attempt']),
+        #            'id': row['task_id']
+        #            }
+        #    self.mirror.basic_insert_row('task', trow)
+        #    self.mirror.begin_task(row['task_id'])
+        #    self.mirror.basic_insert_row('PFW_BLOCK', row)
+        #    self.mirror.commit()
 
         config['task_id']['block'][str(row['blknum'])] = row['task_id']
 
@@ -384,9 +384,9 @@ class PFWDB(desdmdbi.DesDmDbi):
         wherevals = {'task_id': config['task_id']['block'][config[pfwdefs.PF_BLKNUM]]}
 
         self.update_PFW_row('PFW_BLOCK', updatevals, wherevals)
-        if self.mirror is not None:
-            self.mirror.basic_update_row('PFW_BLOCK', updatevals, wherevals)
-            self.mirror.commit()
+        #if self.mirror is not None:
+        #    self.mirror.basic_update_row('PFW_BLOCK', updatevals, wherevals)
+        #    self.mirror.commit()
 
 
     ##### JOB #####
@@ -1064,19 +1064,19 @@ class PFWDB(desdmdbi.DesDmDbi):
         cols = [desc[0].lower() for desc in curs.description]
         mcurs = self.mirror.cursor()
         binds = ['?'] * len(cols)
-        mcurs.executemany(f"insert into file_archive_info ({','.join(cols)}) values ({','.join(binds)})", results)
+        mcurs.executemany(f"insert into file_archive_info ({','.join(cols)}, ORIG) values ({','.join(binds)},1)", results)
         curs.execute(f"select df.* from desfile df, {gtt} gtt where gtt.filename=df.filename")
         results = curs.fetchall()
         cols = [desc[0].lower() for desc in curs.description]
         binds = ['?'] * len(cols)
-        mcurs.executemany(f"insert into desfile ({','.join(cols)}) values ({','.join(binds)})", results)
+        mcurs.executemany(f"insert into desfile ({','.join(cols)}, ORIG) values ({','.join(binds)}, 1)", results)
         mcurs.close()
         self.mirror.commit()
 
     def setupMirror(self):
         tables = ['exclude_list',
                   'ops_archive',
-                  'ops_transfer',
+                  #'ops_transfer',
                   'ops_transfer_val',
                   'ops_archive_val',
                   'ops_datafile_metadata',
@@ -1103,6 +1103,7 @@ class PFWDB(desdmdbi.DesDmDbi):
         curs = self.cursor()
         mcurs = self.mirror.cursor()
         for tbl in tables:
+            print(f"Updating table {tbl}")
             curs.execute(f"select * from {tbl}")
             results = curs.fetchall()
             cols = [desc[0].lower() for desc in curs.description]
@@ -1116,7 +1117,7 @@ class PFWDB(desdmdbi.DesDmDbi):
     def integrateMirror(self):
         depends = 'depends'
         sequences = 'seq'
-
+        columns = 'columns'
         '''calibraion ?
         catalog N
         ccdgon Y
@@ -1151,74 +1152,103 @@ class PFWDB(desdmdbi.DesDmDbi):
         tables = collections.OrderedDict({
             #  tables with no dependencies and no sequences
             'catalog': {depends: {},
-                        sequences: None},
+                        sequences: None,
+                        columns: ["*"]},
             'coadd': {depends: {},
-                      sequences: None},
+                      sequences: None,
+                      columns: ["*"]},
             'coadd_astrom_qa': {depends: {},
-                                sequences: None},
+                                sequences: None,
+                                columns: ["*"]},
             'coadd_exposure_astrom_qa': {depends: {},
-                                         sequences: None},
+                                         sequences: None,
+                                         columns: ["*"]},
             'se_object': {depends: {},
-                          sequences: None},
+                          sequences: None,
+                          columns: ["*"]},
             'image': {depends: {},
-                      sequences: None},
+                      sequences: None,
+                      columns: ["*"]},
             'miscfile': {depends: {},
-                         sequences: None},
+                         sequences: None,
+                         columns: ["*"]},
             'ccdgon':{depends: {},
-                      sequences: None},
+                      sequences: None,
+                      columns: ["*"]},
             'molygon': {depends: {},
-                        sequences: None},
+                        sequences: None,
+                        columns: ["*"]},
             'molygon_ccdgon': {depends: {},
-                               sequences: None},
+                               sequences: None,
+                               columns: ["*"]},
 
             # tables with dependencies on themselves
             'task':{depends: {'parent_task_id': ('task', 'id')},
-                    sequences: 'id'},
+                    sequences: 'id',
+                    columns: ["*"]},
 
             # tables with no dependencies and sequences
             'coadd_object': {depends: {},
-                             sequences: 'id'},
+                             sequences: 'id',
+                             columns: ["*"]},
 
             # tables with both dependencies and sequences
             'desfile': {depends: {'wgb_task_id': ('task', 'id')},
-                        sequences: 'id'},
+                        sequences: 'id',
+                        columns: ["ID", "PFW_ATTEMPT_ID", "WGB_TASK_ID", "FILETYPE",	 "FILENAME", "COMPRESSION", "FILESIZE", "MD5SUM", "USER_CREATED_BY", "MODULE_CREATED_BY", "CREATED_DATE"]},
 
             # tables with dependencies and no sequences
             'coadd_object_extiction': {depends: {'coadd_object_id': ('coadd_object', 'id')},
-                                       sequences: None},
+                                       sequences: None,
+                                       columns: ["*"]},
             'coadd_object_extinction_band': {depends: {'coadd_object_id': ('coadd_object', 'id')},
-                                             sequences: None},
+                                             sequences: None,
+                                             columns: ["*"]},
             'coadd_object_hpix': {depends: {'coadd_object_id': ('coadd_object', 'id')},
-                                  sequences: None},
+                                  sequences: None,
+                                  columns: ["*"]},
             'coadd_object_molygon': {depends: {'coadd_object_id': ('coadd_object', 'id')},
-                                     sequences: None},
+                                     sequences: None,
+                                     columns: ["*"]},
             'compress_task': {depends: {'task_id': ('task', 'id')},
-                              sequences: None},
+                              sequences: None,
+                              columns: ["*"]},
             'file_archive_info': {depends: {'desfile_id': ('desfile', 'id')},
-                                  sequences: None},
+                                  sequences: None,
+                                  columns: ["FILENAME", "ARCHIVE_NAME", "PATH", "COMPRESSION", "DESFILE_ID"]
+                                  },
             'opm_used': {depends: {'task_id': ('task', 'id'),
                                    'desfile_id': ('desfile', 'id')},
-                         sequences: None},
+                         sequences: None,
+                         columns: ["*"]},
             'opm_was_derived_from' : {depends: {'desfile_id': ('desfile', 'id')},
-                                      sequences: None},
+                                      sequences: None,
+                                      columns: ["*"]},
             'task_message':{depends: {'task_id': ('task', 'id')},
-                            sequences: None},
+                            sequences: None,
+                            columns: ["*"]},
             'transfer_batch': {depends: {'task_id': ('task', 'id'),
                                          'parent_task_id': ('task', 'id')},
-                               sequences: None},
+                               sequences: None,
+                               columns: ["*"]},
             'transfer_file': {depends: {'task_id': ('task', 'id'),
                                         'batch_task_id': ('task', 'id')},
-                              sequences: None},
+                              sequences: None,
+                              columns: ["*"]},
             'wavg': {depends: {'coadd_object_id': ('coadd_object', 'id')},
-                     sequences: None},
+                     sequences: None,
+                     columns: ["*"]},
             'wavg_oclink': {depends: {'coadd_object_id': ('coadd_object', 'id')},
-                            sequences: None}
+                            sequences: None,
+                            columns: ["*"]}
         })
         dependencies = {}
         for table, item in tables.items():
             curs = self.cursor()
             mcurs = self.mirror.cursor()
-            sql = f"select * from {table}"
+            sql = f"select {','.join(item[columns])} from {table}"
+            if len(item[columns]) > 1:
+                sql += f" where orig=0"
             if item[sequences] is not None:
                 sql += f" order by {item[sequences]} asc"
             mcurs.execute(sql)

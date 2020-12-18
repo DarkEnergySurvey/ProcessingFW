@@ -67,14 +67,14 @@ def begblock(argv):
                                                         label=None,
                                                         do_begin=True,
                                                         do_commit=True)
-        if doMirror:
-            dbh.mirror.basic_insert_row('task', {'name': 'begblock',
-                                                 'info_table': None,
-                                                 'parent_task_id': blktid,
-                                                 'root_task_id': int(config['task_id']['attempt']),
-                                                 'label': None,
-                                                 'id': config['task_id']['begblock']})
-            dbh.mirror.begin_task(config['task_id']['begblock'])
+        #if doMirror:
+        #    dbh.mirror.basic_insert_row('task', {'name': 'begblock',
+        #                                         'info_table': None,
+        #                                         'parent_task_id': blktid,
+        #                                         'root_task_id': int(config['task_id']['attempt']),
+        #                                         'label': None,
+        #                                         'id': config['task_id']['begblock']})
+        #    dbh.mirror.begin_task(config['task_id']['begblock'])
 
     try:
         modulelist = miscutils.fwsplit(config.getfull(pfwdefs.SW_MODULELIST).lower())
@@ -219,9 +219,9 @@ def begblock(argv):
         if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
             dbh.end_task(config['task_id']['begblock'], retval, True)
             dbh.end_task(blktid, retval, True)
-            if doMirror:
-                dbh.mirror.end_task(config['task_id']['begblock'], retval, True)
-                dbh.mirror.end_task(blktid, retval, True)
+            #if doMirror:
+            #    dbh.mirror.end_task(config['task_id']['begblock'], retval, True)
+            #    dbh.mirror.end_task(blktid, retval, True)
         raise
 
     # save config, have updated jobnum, wrapnum, etc
@@ -236,7 +236,7 @@ def begblock(argv):
     if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
         dbh.end_task(config['task_id']['begblock'], retval, True)
         if doMirror:
-            dbh.mirror.end_task(config['task_id']['begblock'], retval, True)
+            #dbh.mirror.end_task(config['task_id']['begblock'], retval, True)
             dbh.mirror.commit()
             dbh.mirror.close()
             tjpad = pfwutils.pad_jobnum(jobdict['jobnum'])
