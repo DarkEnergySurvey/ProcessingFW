@@ -141,6 +141,14 @@ def blockpost(argv=None):
                                   config.getfull('submit_des_db_section'))
             else:
                 dbh = config.dbh
+
+            if config.get(pfwdefs.SQLITE_FILE) is not None:
+                miscutils.fwdebug_print("Integrating job side sqlite database")
+                os.environ['run_dir'] = os.path.join(os.getcwd(), f"{int(blknum):04d}")
+                config[pfwdefs.SQLITE_FILE] = config.get(pfwdefs.SQLITE_FILE).replace('.db','-run.db')
+                dbh.activateMirror(config, False)
+                dbh.integrateMirror()
+                dbh.mirror.close()
             if verify_files:
                 curs = dbh.cursor()
                 curs.execute(f"select root from ops_archive where name='{config.getfull('home_archive')}'")

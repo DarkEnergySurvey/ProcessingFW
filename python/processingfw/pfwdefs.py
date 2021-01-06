@@ -174,7 +174,7 @@ PF_BLKNUM = 'blknum'
 PF_CURRVALS = 'currentvals'
 PF_VERIFY_FILES = 'verify_files'
 
-SQLITE_FILE = 'sqlite_file'
+SQLITE_FILE = 'des_sqlite_file'
 SQLITE_DEFAULT_FILE = 'sqldefault.db'
 
 

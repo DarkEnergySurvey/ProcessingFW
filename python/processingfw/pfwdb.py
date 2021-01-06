@@ -48,14 +48,24 @@ class PFWDB(desdmdbi.DesDmDbi):
         self.desfile = desfile
         self.mirror = None
 
-    def activateMirror(self, config):
+    def activateMirror(self, config, setup=True):
+        """ Connect to the mirror database (sqlite).
+
+            Parameters
+            ----------
+            config: WCL of the config file
+
+            setup: bool, whether to set up the initial entries
+
+        """
         if self.mirror is None:
             sqlite = config.getfull(pfwdefs.SQLITE_FILE)
             if sqlite is None:
                 raise Exception(f"Cannot create sqlite database if {pfwdefs.SQLITE_FILE} is not defnied in the wcl.")
             os.environ[desdmdbi.dbdefs.DES_SQLITE_FILE] = config[pfwdefs.SQLITE_FILE]
             self.mirror = desdmdbi.DesDmDbi(self.desfile, config['target_des_db_section'])
-            self.setupMirror()
+            if setup:
+                self.setupMirror()
 
     def get_database_defaults(self):
         """ Grab default configuration information stored in database """
@@ -83,6 +93,9 @@ class PFWDB(desdmdbi.DesDmDbi):
             print(f"\nInformational: Data for transfer site {site} was not found in the database, continuing with defaults")
         data = {}
         for res in results:
+            if self.mirror is not None:
+                if 'semname' in res[0]:
+                    continue
             data[res[0]] = res[1]
         return data
 
@@ -260,8 +273,7 @@ class PFWDB(desdmdbi.DesDmDbi):
                     loopcnt = loopcnt + 1
                     self.rollback()
                     continue
-                else:
-                    raise
+                raise
 
         if not done:
             raise Exception("Exceeded max tries for inserting into pfw_attempt table")
@@ -416,6 +428,9 @@ class PFWDB(desdmdbi.DesDmDbi):
         if 'jobkeys' in jobdict:
             row['jobkeys'] = jobdict['jobkeys']
         self.insert_PFW_row('PFW_JOB', row)
+        if self.mirror is not None:
+            self.mirror.basic_insert_row('PFW_JOB', row)
+            self.mirror.commit()
 
 
     def update_job_target_info(self, wcl, submit_condor_id=None,
@@ -1074,6 +1089,10 @@ class PFWDB(desdmdbi.DesDmDbi):
         self.mirror.commit()
 
     def setupMirror(self):
+        """ Populate the job side sqlite database with the initial entries. This ensures
+            that the initial state of the database is current. To add additional tables to
+            this, just add them to the tables list.
+        """
         tables = ['exclude_list',
                   'ops_archive',
                   #'ops_transfer',
@@ -1115,173 +1134,178 @@ class PFWDB(desdmdbi.DesDmDbi):
 
 
     def integrateMirror(self):
+        """ Copy any entries that were generated in the job side sqlite database and ingest them into
+            the main oracle database. Before ingestion any sequences that were used (typically id's)
+            are adjusted to unique values in the oracle database. Column dependencies are also updated to
+            the new sequence numbers (column dependencies are defined as a column value in one table that
+            is tied to a value in another table, e.g. desfile_id in file_archive_info is dependent on
+            values in the id column of desfile).
+            The table entries have three components:
+
+            depends: a dict where the key(s) is the name of the dependent column and the value(s) is
+                     a tuple of the parent table and column name.
+
+                     Example:
+                         In the file_archive_info entry {'desfile_id': ('desfile', 'id')} indicates that
+                         file_archive_info.desfile_id depends on desfile.id
+
+            sequence: The column name of any sequence in the table, None if there are no sequences
+
+            columns: a list of the column names to ingest. Typically all columns are ingested ["*"],
+                     however a few tables have extra columns to indicate entries that already exist in
+                     the oracle database (e.g., input files) that do not need to be re-ingested.
+
+            To add a new table to be ingested just add an entry to the tables dict with the above
+            keys. Note that order in the dict matters as any dependent tables must be ingested after the
+            table they are dependent on.
+        """
         depends = 'depends'
-        sequences = 'seq'
+        sequence = 'seq'
         columns = 'columns'
-        '''calibraion ?
-        catalog N
-        ccdgon Y
-        coadd N
-        coaddtile_geom?
-        coadd_astrom_qa N
-        coadd_exposure_astrom_qa N
-        coadd_object Y (ID, OBJECT_NUMBER, PARENT_NUMBER)
-        coadd_object_extiction Y (COADD_OBJECT_ID)
-        coadd_object_extinction_band Y (COADD_OBJECT_ID)
-        coadd_object_hpix Y (COADD_OBJECT_ID)
-        coadd_object_molygon Y (COADD_OBJECT_ID)
-        compress_task (TASK_ID)
-        desfile Y (ID WGB_TASK_ID)
-        file_archive_info Y (DESFILE_ID)
-        image N
-        miscfile N
-        molygon Y (several)
-        molygon_ccdgon Y (MOLY_NUMBER CCDGON_NUMBER)
-        opm_used Y (TASK_ID DESFILEID)
-        opm_was_derived_from Y (DESFILE_ID)
-        pfw_job ? Y
-        pfw_message Y (TASK_ID)
-        pfw_exec? Y
-        se_object Y (OBJECT_NUMBER)
-        task Y (ID)
-        task_message? Y (TASK_ID)
-        transfer_file Y (TASK_ID)
-        wavg Y (COADD_OBJECT_ID)
-        wavg_oclink Y (COADD_OBJECT_ID)
-        '''
+
         tables = collections.OrderedDict({
             #  tables with no dependencies and no sequences
             'catalog': {depends: {},
-                        sequences: None,
+                        sequence: None,
                         columns: ["*"]},
             'coadd': {depends: {},
-                      sequences: None,
+                      sequence: None,
                       columns: ["*"]},
             'coadd_astrom_qa': {depends: {},
-                                sequences: None,
+                                sequence: None,
                                 columns: ["*"]},
             'coadd_exposure_astrom_qa': {depends: {},
-                                         sequences: None,
+                                         sequence: None,
                                          columns: ["*"]},
             'se_object': {depends: {},
-                          sequences: None,
+                          sequence: None,
                           columns: ["*"]},
             'image': {depends: {},
-                      sequences: None,
+                      sequence: None,
                       columns: ["*"]},
             'miscfile': {depends: {},
-                         sequences: None,
+                         sequence: None,
                          columns: ["*"]},
             'ccdgon':{depends: {},
-                      sequences: None,
+                      sequence: None,
                       columns: ["*"]},
             'molygon': {depends: {},
-                        sequences: None,
+                        sequence: None,
                         columns: ["*"]},
             'molygon_ccdgon': {depends: {},
-                               sequences: None,
+                               sequence: None,
                                columns: ["*"]},
 
             # tables with dependencies on themselves
             'task':{depends: {'parent_task_id': ('task', 'id')},
-                    sequences: 'id',
+                    sequence: 'id',
                     columns: ["*"]},
 
             # tables with no dependencies and sequences
             'coadd_object': {depends: {},
-                             sequences: 'id',
+                             sequence: 'id',
                              columns: ["*"]},
 
             # tables with both dependencies and sequences
             'desfile': {depends: {'wgb_task_id': ('task', 'id')},
-                        sequences: 'id',
-                        columns: ["ID", "PFW_ATTEMPT_ID", "WGB_TASK_ID", "FILETYPE",	 "FILENAME", "COMPRESSION", "FILESIZE", "MD5SUM", "USER_CREATED_BY", "MODULE_CREATED_BY", "CREATED_DATE"]},
+                        sequence: 'id',
+                        columns: ["ID", "PFW_ATTEMPT_ID", "WGB_TASK_ID", "FILETYPE", "FILENAME", "COMPRESSION", "FILESIZE", "MD5SUM", "USER_CREATED_BY", "MODULE_CREATED_BY", "CREATED_DATE"]},
 
             # tables with dependencies and no sequences
-            'coadd_object_extiction': {depends: {'coadd_object_id': ('coadd_object', 'id')},
-                                       sequences: None,
-                                       columns: ["*"]},
+            'coadd_object_extinction': {depends: {'coadd_object_id': ('coadd_object', 'id')},
+                                        sequence: None,
+                                        columns: ["*"]},
             'coadd_object_extinction_band': {depends: {'coadd_object_id': ('coadd_object', 'id')},
-                                             sequences: None,
+                                             sequence: None,
                                              columns: ["*"]},
             'coadd_object_hpix': {depends: {'coadd_object_id': ('coadd_object', 'id')},
-                                  sequences: None,
+                                  sequence: None,
                                   columns: ["*"]},
             'coadd_object_molygon': {depends: {'coadd_object_id': ('coadd_object', 'id')},
-                                     sequences: None,
+                                     sequence: None,
                                      columns: ["*"]},
             'compress_task': {depends: {'task_id': ('task', 'id')},
-                              sequences: None,
+                              sequence: None,
                               columns: ["*"]},
             'file_archive_info': {depends: {'desfile_id': ('desfile', 'id')},
-                                  sequences: None,
+                                  sequence: None,
                                   columns: ["FILENAME", "ARCHIVE_NAME", "PATH", "COMPRESSION", "DESFILE_ID"]
                                   },
             'opm_used': {depends: {'task_id': ('task', 'id'),
                                    'desfile_id': ('desfile', 'id')},
-                         sequences: None,
+                         sequence: None,
                          columns: ["*"]},
             'opm_was_derived_from' : {depends: {'desfile_id': ('desfile', 'id')},
-                                      sequences: None,
+                                      sequence: None,
                                       columns: ["*"]},
             'task_message':{depends: {'task_id': ('task', 'id')},
-                            sequences: None,
+                            sequence: None,
                             columns: ["*"]},
             'transfer_batch': {depends: {'task_id': ('task', 'id'),
                                          'parent_task_id': ('task', 'id')},
-                               sequences: None,
+                               sequence: None,
                                columns: ["*"]},
             'transfer_file': {depends: {'task_id': ('task', 'id'),
                                         'batch_task_id': ('task', 'id')},
-                              sequences: None,
+                              sequence: None,
                               columns: ["*"]},
             'wavg': {depends: {'coadd_object_id': ('coadd_object', 'id')},
-                     sequences: None,
+                     sequence: None,
                      columns: ["*"]},
             'wavg_oclink': {depends: {'coadd_object_id': ('coadd_object', 'id')},
-                            sequences: None,
+                            sequence: None,
                             columns: ["*"]}
         })
         dependencies = {}
+        print("Have tables")
         for table, item in tables.items():
+            print(f"Processing {table}")
             curs = self.cursor()
             mcurs = self.mirror.cursor()
             sql = f"select {','.join(item[columns])} from {table}"
             if len(item[columns]) > 1:
                 sql += f" where orig=0"
-            if item[sequences] is not None:
-                sql += f" order by {item[sequences]} asc"
+            if item[sequence] is not None:
+                sql += f" order by {item[sequence]} asc"
+            print("   " + sql)
             mcurs.execute(sql)
             results = mcurs.fetchall()
             if results:
-                cols = [desc[0].lower() for desc in curs.description]
+                print(f"   Have {len(results)}")
+                cols = [desc[0].lower() for desc in mcurs.description]
                 binds = ['?'] * len(cols)
                 # if we are modifying the contents then we need to convert to a list of lists
-                if item[sequences] is not None or item[depends]:
+                if item[sequence] is not None or item[depends]:
                     r2 = []
                     for r in results:
                         r2.append(list(r))
                     results = r2
-                if item[sequences] is not None:
-                    idx = cols.index(item[sequences])
+                if item[sequence] is not None:
+                    idx = cols.index(item[sequence])
                     curs.execute(f"select {table}_seq.nextval from dual connect by level < {len(results) + 1}")
                     nums = [i[0] for i in curs.fetchall()]
+                    print(f"  Have {len(nums)} new seq")
                     if table not in dependencies:
                         dependencies[table] = {}
                     theseq = {}
-                    for i in len(results):
+                    for i in range(len(results)):
                         theseq[results[i][idx]] = nums[i]
                         results[i][idx] = nums[i]
-                    dependencies[table][item[sequences]] = theseq
+                    dependencies[table][item[sequence]] = theseq
                 if item[depends]:
                     for col, (deptable, depcol) in item[depends].items():
                         idx = cols.index(col)
-                        for i in len(results):
-                            results[i][idx] = dependencies[deptable][depcol][results[i][idx]]
+                        for i in range(len(results)):
+                            try:
+                                results[i][idx] = dependencies[deptable][depcol][results[i][idx]]
+                            except KeyError:  # some may already be filled out correctly
+                                pass
                 binds = []
                 for i in range(1, len(cols) + 1):
-                    binds.append(self.get_named_bind_string(i))
-                curs.executemany(f"insert into {table} ({','.join(cols)}) values ({','.join(binds)})", results)
+                    binds.append(self.get_positional_bind_string(i))
+                sql = f"insert into {table} ({','.join(cols)}) values ({','.join(binds)})"
+                print("    " + sql)
+                curs.executemany(sql, results)
                 self.commit()
             curs.close()
             mcurs.close()

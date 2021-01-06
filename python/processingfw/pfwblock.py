@@ -2461,8 +2461,8 @@ def write_runjob_script(config):
 
     scriptstr = """#!/usr/bin/env sh
 echo "PFW: job_shell_script cmd: $0 $@";
-if [ $# -ne 6 ]; then
-    echo "Usage: $0 <jobnum> <input tar> <job wcl> <tasklist> <env file> <output tar>";
+if [ $# -ne 6 ] && [ $# -ne 7 ]; then
+    echo "Usage: $0 <jobnum> <input tar> <job wcl> <tasklist> <env file> <output tar> [<sqlite file>]";
     echo "PFW: job_shell_script exit_status: 1"
     exit 1;
 fi
@@ -2483,6 +2483,7 @@ jobwcl=$3
 tasklist=$4
 envfile=$5
 outputtar=$6
+sqlitef=${7:-}
 initdir=`pwd`
 
 """
@@ -2638,6 +2639,9 @@ d1=`date "+%s"`
 echo "PFW: copy_job_setup starttime: $d1"
 cp $initdir/$jobwcl $jobwcl
 cp $initdir/$tasklist $tasklist
+if [[ -n $sqlitef ]]; then
+  cp $initdir/${sqlitef}.db ${sqlitef}.db
+fi
 d2=`date "+%s"`
 echo "PFW: copy_job_setup endtime: $d2"
 echo "condor_job_init_dir = " $initdir >> $jobwcl
@@ -2673,6 +2677,9 @@ d2=`date "+%s"`
 echo "PFW: pfwrunjob endtime: $d2"
 echo ""
 echo ""
+if [[ -n $sqlitef ]]; then
+    cp ${sqlitef}.db $initdir/${sqlitef}-run.db
+fi
 if [ -e outputwcl ]; then
     tar -cf $initdir/$outputtar outputwcl;
 else
@@ -2753,10 +2760,13 @@ def create_jobmngr_dag(config, dagfile, scriptfile, joblist):
             dagfh.write(f"JOB {tjpad} {condorfile}\n")
             dagfh.write(f"VARS {tjpad} jobnum=\"{tjpad}\"\n")
             dagfh.write(f"VARS {tjpad} exec=\"../{scriptfile}\"\n")
-            dagfh.write(f"VARS {tjpad} args=\"{jobnum} {jobdict['inputwcltar']} {jobdict['jobwclfile']} {jobdict['tasksfile']} {jobdict['envfile']} {jobdict['outputwcltar']}\"\n")
+            dagfh.write(f"VARS {tjpad} args=\"{jobnum} {jobdict['inputwcltar']} {jobdict['jobwclfile']} {jobdict['tasksfile']} {jobdict['envfile']} {jobdict['outputwcltar']}")
+            if pfwdefs.SQLITE_FILE in jobdict:
+                dagfh.write(f" {jobdict[pfwdefs.SQLITE_FILE].replace('.db', '')}")
+            dagfh.write("\"\n")
             dagfh.write(f"VARS {tjpad} transinput=\"{jobdict['inputwcltar']},{jobdict['jobwclfile']},{jobdict['tasksfile']},jobpost_{tjpad}.sh")
             if pfwdefs.SQLITE_FILE in jobdict:
-                dagfh.write(f",{jobdict[pfwdefs.SQLITE_FILE].replace('-run.db', '.db')}")
+                dagfh.write(f",{jobdict[pfwdefs.SQLITE_FILE]}")
             dagfh.write("\"\n")
             if 'wall' in jobdict:
                 dagfh.write(f"VARS {tjpad} wall=\"{jobdict['wall']}\"\n")
@@ -2764,7 +2774,7 @@ def create_jobmngr_dag(config, dagfile, scriptfile, joblist):
             if use_condor_transfer_output:
                 dagfh.write(f"VARS {tjpad} transoutput=\"{jobdict['outputwcltar']},{jobdict['envfile']}")
             if pfwdefs.SQLITE_FILE in jobdict:
-                dagfh.write(f",{jobdict[pfwdefs.SQLITE_FILE]}")
+                dagfh.write(f",{jobdict[pfwdefs.SQLITE_FILE].replace('.db', '-run.db')}")
             dagfh.write("\"\n")
             dagfh.write(f"SCRIPT pre {tjpad} {pfwdir}/libexec/jobpre.py ../uberctrl/config.des $JOB\n")
             dagfh.write(f"SCRIPT post {tjpad} {tjpad}/jobpost_{tjpad}.sh $RETURN\n")

@@ -58,6 +58,11 @@ def begblock(argv):
                             os.path.join(config['block_dir'], config[pfwdefs.SQLITE_FILE]))
             os.environ['run_dir'] = config['block_dir']
             dbh.activateMirror(config)
+            for sect in config[pfwdefs.SW_ARCHIVESECT].keys():
+                keys = list(config[pfwdefs.SW_ARCHIVESECT][sect].keys())
+                for k in keys:
+                    if 'semname' in k:
+                        del config[pfwdefs.SW_ARCHIVESECT][sect][k]
         dbh.insert_block(config)
         blktid = config['task_id']['block'][str(blknum)]
         config['task_id']['begblock'] = dbh.create_task(name='begblock',

@@ -1828,7 +1828,8 @@ def run_job(args):
             os.environ['DES_DB_SECTION'] = jobwcl['des_db_section']
         if pfwdefs.SQLITE_FILE in jobwcl:
             os.environ[pfwdefs.SQLITE_FILE] = jobwcl[pfwdefs.SQLITE_FILE]
-            shutil.copyfile(jobwcl[pfwdefs.SQLITE_FILE].replace('-run', ''), jobwcl[pfwdefs.SQLITE_FILE])
+            os.environ['run_dir'] = os.getcwd()
+            del os.environ['PFW_JOB_START_EPOCH']
         # update job batch/condor ids
         pfw_dbh = pfwdb.PFWDB(threaded=needDBthreads)
         pfw_dbh.update_job_target_info(jobwcl, condor_id, batch_id, socket.gethostname())
