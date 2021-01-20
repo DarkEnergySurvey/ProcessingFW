@@ -241,6 +241,7 @@ def begblock(argv):
     if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
         dbh.end_task(config['task_id']['begblock'], retval, True)
         if doMirror:
+            dbh.mirrorFinalUpdate()
             #dbh.mirror.end_task(config['task_id']['begblock'], retval, True)
             dbh.mirror.commit()
             dbh.mirror.close()

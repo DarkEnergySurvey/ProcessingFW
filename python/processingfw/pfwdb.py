@@ -27,6 +27,7 @@ from processingfw import pfwdefs
 from despymisc import miscutils
 import qcframework.Messaging as Messaging
 import qcframework.qcfdb as qcfdb
+import intgutils.intgdefs as intgdefs
 
 
 TIME_ZONE = pytz.timezone("America/Chicago")
@@ -47,6 +48,7 @@ class PFWDB(desdmdbi.DesDmDbi):
         desdmdbi.DesDmDbi.__init__(self, desfile, section, threaded=threaded)
         self.desfile = desfile
         self.mirror = None
+        self.additionalTables = False
 
     def activateMirror(self, config, setup=True):
         """ Connect to the mirror database (sqlite).
@@ -65,7 +67,7 @@ class PFWDB(desdmdbi.DesDmDbi):
             os.environ[desdmdbi.dbdefs.DES_SQLITE_FILE] = config[pfwdefs.SQLITE_FILE]
             self.mirror = desdmdbi.DesDmDbi(self.desfile, config['target_des_db_section'])
             if setup:
-                self.setupMirror()
+                self.setupMirror(config)
 
     def get_database_defaults(self):
         """ Grab default configuration information stored in database """
@@ -1088,42 +1090,152 @@ class PFWDB(desdmdbi.DesDmDbi):
         mcurs.close()
         self.mirror.commit()
 
-    def setupMirror(self):
+    def setupMirror(self, config):
         """ Populate the job side sqlite database with the initial entries. This ensures
             that the initial state of the database is current. To add additional tables to
             this, just add them to the tables list.
         """
-        tables = ['exclude_list',
-                  'ops_archive',
-                  #'ops_transfer',
-                  'ops_transfer_val',
-                  'ops_archive_val',
-                  'ops_datafile_metadata',
-                  'ops_datafile_table',
-                  'ops_data_state_def',
-                  'ops_directory_pattern',
-                  'ops_exec_def',
-                  'ops_filename_pattern',
-                  'ops_filetype',
-                  'ops_filetype_metadata',
-                  'ops_file_header',
-                  'ops_job_file_mvmt',
-                  'ops_job_file_mvmt_val',
-                  'ops_message_filter',
-                  'ops_message_ignore',
-                  'ops_message_pattern',
-                  'ops_metadata',
-                  'ops_site',
-                  'ops_site_val',
-                  'ops_transfer_val',
-                  #'proctag',
-                  #zeropoint',
-                  ]
+        class Column:
+            def __init__(self, name, data_type, nullable, precision, scale, default):
+                self.name = name
+                self.nullable = nullable.upper() == 'Y'
+                if 'NUMBER' in data_type:
+                    if scale == 0:
+                        self.dtype = 'INTEGER'
+                    else:
+                        self.dtype = 'REAL'
+                elif 'VARCHAR' in data_type:
+                    self.dtype = 'TEXT'
+                elif 'BINARY' in data_type or 'FLOAT' in data_type or 'DOUBLE' in data_type:
+                    self.dtype = 'REAL'
+                else:
+                    self.dtype = data_type
+                self.unique = False
+                self.default = default
+                if self.dtype == 'TEXT' and self.default is not None:
+                    self.default = "'" + self.default + "'"
+            def set_unique(self, unq=True):
+                self.unique = unq
+
+            def __str__(self):
+                st = f'"{self.name}" {self.dtype}'
+                if self.default is not None:
+                    st += f' DEFAULT {self.default}'
+                if not self.nullable:
+                    st += " NOT NULL"
+                if self.unique:
+                    st += " UNIQUE"
+                return st
+
+        tables = set(('exclude_list',
+                      'ops_archive',
+                      #'ops_transfer',
+                      'ops_transfer_val',
+                      'ops_archive_val',
+                      'ops_datafile_metadata',
+                      'ops_datafile_table',
+                      'ops_data_state_def',
+                      'ops_directory_pattern',
+                      'ops_exec_def',
+                      'ops_filename_pattern',
+                      'ops_filetype',
+                      'ops_filetype_metadata',
+                      'ops_file_header',
+                      'ops_job_file_mvmt',
+                      'ops_job_file_mvmt_val',
+                      'ops_message_filter',
+                      'ops_message_ignore',
+                      'ops_message_pattern',
+                      'ops_metadata',
+                      'ops_site',
+                      'ops_site_val',
+                      'ops_transfer_val',
+                      #'proctag',
+                      #zeropoint',
+                      ))
         curs = self.cursor()
         mcurs = self.mirror.cursor()
+        if 'copy_tables' in config:
+            self.additionalTables = True
+            #table_list = config.getfull('copy_tables').replace(' ', '').split(',')
+            for entry in config['copy_tables'].values():
+                table = config.getfull(entry['name'])
+                table = table.upper()
+                #tables.add(table)
+                owner = None
+                tbl = None
+                hasSchema = False
+                if '.' in table:
+                    if table.count('.') != 1:
+                        raise Exception("Improper table naming")
+                    owner,tbl = table.split('.')
+                    hasSchema = True
+                else:
+                    tbl = table
+                mcurs.execute(f"select count(name) from sqlite_master where type='table' and name='{tbl.upper()}'")
+                if mcurs.fetchone()[0] == 1:
+                    continue
+                if hasSchema:
+                    curs.execute(f"select column_name,owner,data_type,nullable,data_precision,data_scale,data_default FROM all_tab_columns WHERE table_name='{tbl.upper()}' and owner='{owner.upper()}'")
+                else:
+                    sql = f"select column_name,owner,data_type,nullable,data_precision,data_scale,data_default FROM all_tab_columns WHERE table_name='{tbl.upper()}' order by owner"
+                    print(sql)
+                    curs.execute(sql)
+                columns = curs.fetchall()
+                newTable = collections.OrderedDict()
+                for col in columns:
+                    if owner is None:
+                        owner = col[1]
+                    if owner != col[1]:
+                        continue
+                    newTable[col[0]] = Column(col[0], col[2], col[3], col[4], col[5], col[6])
+
+                sql = f"""select ind.table_name,
+       ind.index_name,
+       LISTAGG(ind_col.column_name, ',')
+            WITHIN GROUP(order by ind_col.column_position),
+       ind.index_type,
+       ind.uniqueness
+from sys.all_indexes ind
+join sys.all_ind_columns ind_col
+           on ind.owner = ind_col.index_owner
+           and ind.index_name = ind_col.index_name
+where ind.table_name='{tbl.upper()}' and ind.table_owner='{owner.upper()}'
+group by ind.table_owner,
+         ind.table_name,
+         ind.index_name,
+         ind.index_type,
+         ind.uniqueness """
+                print(sql)
+                curs.execute(sql)
+                indexes = curs.fetchall()
+                indices = []
+                primary_key = ''
+                for indx in indexes:
+                    cols = '"' + indx[2].replace(',', '","') + '"'
+                    if indx[1].endswith('_PK'):
+                        primary_key = f",\nPRIMARY KEY ({cols})"
+                    else:
+                        i = "CREATE"
+                        if indx[4].upper() == 'UNIQUE':
+                            if ',' not in cols:
+                                newTable[tbl].set_unique(True)
+                                continue
+                            i += " UNIQUE"
+                        i += f" INDEX {indx[1]} on {table}({cols})"
+                        indices.append(i)
+                coldesc = []
+                for _, v in newTable.items():
+                    coldesc.append(str(v))
+                sql = f'CREATE TABLE "{table}" (\n' + ',\n'.join(coldesc) + primary_key + ')'
+                mcurs.execute(sql)
+                for idx in indices:
+                    mcurs.execute(idx)
         for tbl in tables:
             print(f"Updating table {tbl}")
-            curs.execute(f"select * from {tbl}")
+            sql = f"select * from {tbl}"
+            print(sql)
+            curs.execute(sql)
             results = curs.fetchall()
             cols = [desc[0].lower() for desc in curs.description]
             binds = ['?'] * len(cols)
@@ -1131,6 +1243,60 @@ class PFWDB(desdmdbi.DesDmDbi):
         self.mirror.commit()
         mcurs.close()
         curs.close()
+
+    def mirrorFinalUpdate(self, config):
+        if not self.additionalTables or self.mirror is None:
+            return
+        curs = self.cursor()
+        mcurs = self.mirror.cursor()
+        for entry in config['copy_tables'].values():
+            table = config.getfull(entry['name'])
+            sql = f"select * from {table}"
+            if 'where' in entry:
+                whr = entry['where']
+                whstmt = []
+                if 'inlist' in whr.keys():
+                    v = whr['inlist']
+                    files = []
+                    colnum = 0
+                    if 'column' in v:
+                        colnum = int(v['column']) - 1
+                    fname = v['listfile'].split('.')
+                    ds = config.combine_lists_files(fname[0])
+                    for n, v in ds:
+                        if n == 'list' + fname[-1]:
+                            filenames = config.get_filename(v['filepat'], {pfwdefs.PF_CURRVALS: v, 'expand': True, intgdefs.REPLACE_VARS: True})
+                            for fname in filenames:
+                                lines = open(os.path.join(v['rundir'], fname), 'r').readlines()
+                                for line in lines:
+                                    line = line.split()[colnum]
+                                    line = line.split('/')[-1]
+                                    files.append(line)
+                    gtt = self.load_filename_gtt(files)
+                    sql = f"select t.* from {table} t, {gtt} gtt where t.{v['var']}=gtt.{v['var']}"
+                else:
+                    for k, v in whr.items():
+                        if k == 'equals':
+                            try:
+                                _ = float(v['value'])
+                            except:
+                                v['value'] = "'" + v['value'] + "'"
+                            whstmt.append(f" {v['var']}={v['value']}")
+                        if k == 'in':
+                            whstmt.append(f" {v['var']} in {v['value']}")
+                        if k == 'lessthan':
+                            whstmt.append(f" {v['var']}<{v['value']}")
+                        if k == 'greaterthan':
+                            whstmt.append(f" {v['var']}>{v['value']}")
+                    sql += " where" + " and".join(whstmt)
+            curs.execute(sql)
+            results = curs.fetchall()
+            cols = [desc[0].lower() for desc in curs.description]
+            binds = ['?'] * len(cols)
+            mcurs.executemany(f"insert into {table} ({','.join(cols)}) values ({','.join(binds)})", results)
+        self.mirror.commit()
+        curs.close()
+        mcurs.close()
 
 
     def integrateMirror(self):
@@ -1235,12 +1401,16 @@ class PFWDB(desdmdbi.DesDmDbi):
                                    'desfile_id': ('desfile', 'id')},
                          sequence: None,
                          columns: ["*"]},
-            'opm_was_derived_from' : {depends: {'desfile_id': ('desfile', 'id')},
-                                      sequence: None,
-                                      columns: ["*"]},
-            'task_message':{depends: {'task_id': ('task', 'id')},
+            'opm_was_derived_from': {depends: {'child_desfile_id': ('desfile', 'id'),
+                                               'parent_desfile_id': ('desfile', 'id')},
+                                     sequence: None,
+                                     columns: ["*"]},
+            'pfw_wrapper': {depends: {'task_id': ('task', 'id')},
                             sequence: None,
                             columns: ["*"]},
+            'task_message': {depends: {'task_id': ('task', 'id')},
+                             sequence: None,
+                             columns: ["*"]},
             'transfer_batch': {depends: {'task_id': ('task', 'id'),
                                          'parent_task_id': ('task', 'id')},
                                sequence: None,
