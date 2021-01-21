@@ -28,7 +28,7 @@ from despymisc import miscutils
 import qcframework.Messaging as Messaging
 import qcframework.qcfdb as qcfdb
 import intgutils.intgdefs as intgdefs
-
+import intgutils.replace_funcs as replfuncs
 
 TIME_ZONE = pytz.timezone("America/Chicago")
 
@@ -1250,7 +1250,7 @@ group by ind.table_owner,
         curs = self.cursor()
         mcurs = self.mirror.cursor()
         for entry in config['copy_tables'].values():
-            table = config.getfull(entry['name'])
+            table = replfuncs.replace_vars_single(entry['name'], config, None)
             sql = f"select * from {table}"
             if 'where' in entry:
                 whr = entry['where']
