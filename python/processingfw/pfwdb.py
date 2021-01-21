@@ -1159,7 +1159,7 @@ class PFWDB(desdmdbi.DesDmDbi):
             self.additionalTables = True
             #table_list = config.getfull('copy_tables').replace(' ', '').split(',')
             for entry in config['copy_tables'].values():
-                table = config.getfull(entry['name'])
+                table = replfuncs.replace_vars_single(entry['name'], config, None)
                 table = table.upper()
                 #tables.add(table)
                 owner = None
