@@ -1273,6 +1273,8 @@ group by ind.table_owner,
                                     line = line.split()[colnum]
                                     line = line.split('/')[-1]
                                     files.append(line)
+                                    print(line)
+                    print("FILES  " + str(len(files)))
                     gtt = self.load_filename_gtt(files)
                     sql = f"select t.* from {table} t, {gtt} gtt where t.{inlist['var']}=gtt.filename"
                 else:
