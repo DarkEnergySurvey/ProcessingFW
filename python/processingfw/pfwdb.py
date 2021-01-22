@@ -1266,9 +1266,9 @@ group by ind.table_owner,
                     for n, v in ds:
                         if n == 'list-' + fname[-1]:
                             filenames = config.get_filename(v['filepat'], {pfwdefs.PF_CURRVALS: v, 'expand': True, intgdefs.REPLACE_VARS: True})
-                            for fname in filenames:
+                            for flname in filenames:
                                 print(os.getcwd())
-                                lines = open(os.path.join(v['rundir'], fname[0], fname), 'r').readlines()
+                                lines = open(os.path.join(v['rundir'], fname[0], flname), 'r').readlines()
                                 for line in lines:
                                     line = line.split()[colnum]
                                     line = line.split('/')[-1]
