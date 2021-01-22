@@ -1274,7 +1274,7 @@ group by ind.table_owner,
                                     line = line.split('/')[-1]
                                     files.append(line)
                     gtt = self.load_filename_gtt(files)
-                    sql = f"select t.* from {table} t, {gtt} gtt where t.{inlist['var']}=gtt.{inlist['var']}"
+                    sql = f"select t.* from {table} t, {gtt} gtt where t.{inlist['var']}=gtt.filename"
                 else:
                     for k, v in whr.items():
                         if k == 'equals':
