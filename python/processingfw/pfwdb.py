@@ -1290,6 +1290,7 @@ group by ind.table_owner,
                         if k == 'greaterthan':
                             whstmt.append(f" {v['var']}>{v['value']}")
                     sql += " where" + " and".join(whstmt)
+            print(sql)
             curs.execute(sql)
             results = curs.fetchall()
             cols = [desc[0].lower() for desc in curs.description]
