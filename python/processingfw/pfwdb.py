@@ -1256,15 +1256,15 @@ group by ind.table_owner,
                 whr = entry['where']
                 whstmt = []
                 if 'inlist' in whr.keys():
-                    v = whr['inlist']
+                    inlist = whr['inlist']
                     files = []
                     colnum = 0
-                    if 'column' in v:
-                        colnum = int(v['column']) - 1
-                    fname = v['listfile'].split('.')
+                    if 'column' in inlist:
+                        colnum = int(inlist['column']) - 1
+                    fname = inlist['listfile'].split('.')
                     ds = config.combine_lists_files(fname[0])
                     for n, v in ds:
-                        if n == 'list' + fname[-1]:
+                        if n == 'list-' + fname[-1]:
                             filenames = config.get_filename(v['filepat'], {pfwdefs.PF_CURRVALS: v, 'expand': True, intgdefs.REPLACE_VARS: True})
                             for fname in filenames:
                                 lines = open(os.path.join(v['rundir'], fname), 'r').readlines()
@@ -1273,7 +1273,7 @@ group by ind.table_owner,
                                     line = line.split('/')[-1]
                                     files.append(line)
                     gtt = self.load_filename_gtt(files)
-                    sql = f"select t.* from {table} t, {gtt} gtt where t.{v['var']}=gtt.{v['var']}"
+                    sql = f"select t.* from {table} t, {gtt} gtt where t.{inlist['var']}=gtt.{inlist['var']}"
                 else:
                     for k, v in whr.items():
                         if k == 'equals':
