@@ -1,9 +1,3 @@
-# $Id: pfwemail.py 47226 2018-07-12 20:24:15Z friedel $
-# $Rev:: 47226                            $:  # Revision of last commit.
-# $LastChangedBy:: friedel                $:  # Author of last commit.
-# $LastChangedDate:: 2018-07-12 15:24:15 #$:  # Date of last commit.
-
-# pylint: disable=print-statement
 
 """ Utilities for sending PFW emails """
 
@@ -12,9 +6,9 @@ import glob
 import subprocess
 from io import StringIO
 
-import processingfw.pfwdefs as pfwdefs
-import intgutils.intgdefs as intgdefs
 from despymisc import miscutils
+from intgutils import intgdefs
+from processingfw import pfwdefs
 
 NUMLINES = 50
 
@@ -27,61 +21,59 @@ def send_email(config, block, status, subject, msg1, msg2, sendit=True):
         localmachine = os.uname()[1]
 
         mailfile = f"email_{block}.txt"
-        mailfh = open(mailfile, "w")
+        with open(mailfile, "w", encoding="utf8") as mailfh:
 
-        mailfh.write("""
+            mailfh.write("""
 *************************************************************
 *                                                           *
 *  This is an automated message from DESDM.  Do not reply.  *
 *                                                           *
 *************************************************************
     """)
-        mailfh.write("\n")
-
-        mailfh.write(f"{msg1}\n\n\n")
-
-        mailfh.write(f"operator = {config.getfull('operator')}\n")
-        mailfh.write(f"pipeline = {config.getfull('pipeline')}\n")
-        mailfh.write(f"project = {project}\n")
-        mailfh.write(f"run = {run}\n")
-        if 'pfw_attempt_id' in config:
-            mailfh.write(f"pfw_attempt_id = {config['pfw_attempt_id']}\n")
-        if 'task_id' in config and 'attempt' in config['task_id']:
-            mailfh.write(f"pfw_attempt task_id = {config['task_id']['attempt']}\n")
-
-        mailfh.write("\n")
-
-        (exists, home_archive) = config.search(pfwdefs.HOME_ARCHIVE, {intgdefs.REPLACE_VARS: True})
-        if exists:
-            mailfh.write("Home Archive:\n")
-            mailfh.write(f"\t{pfwdefs.HOME_ARCHIVE.lower()} = {home_archive}\n")
-            mailfh.write(f"\tArchive directory = {config.getfull('root')}/{config.getfull(pfwdefs.ATTEMPT_ARCHIVE_PATH)}\n")
             mailfh.write("\n")
 
+            mailfh.write(f"{msg1}\n\n\n")
 
-        mailfh.write("Submit:\n")
-        mailfh.write(f"\tmachine = {localmachine}\n")
-        mailfh.write(f"\tPROCESSINGFW_DIR = {os.environ['PROCESSINGFW_DIR']}\n")
-        mailfh.write(f"\torig config = {config.getfull('submit_dir')}/{config.getfull('submitwcl')}\n")
-        mailfh.write(f"\tdirectory = {config.getfull('work_dir')}\n\n")
+            mailfh.write(f"operator = {config.getfull('operator')}\n")
+            mailfh.write(f"pipeline = {config.getfull('pipeline')}\n")
+            mailfh.write(f"project = {project}\n")
+            mailfh.write(f"run = {run}\n")
+            if 'pfw_attempt_id' in config:
+                mailfh.write(f"pfw_attempt_id = {config['pfw_attempt_id']}\n")
+            if 'task_id' in config and 'attempt' in config['task_id']:
+                mailfh.write(f"pfw_attempt task_id = {config['task_id']['attempt']}\n")
+
+            mailfh.write("\n")
+
+            (exists, home_archive) = config.search(pfwdefs.HOME_ARCHIVE, {intgdefs.REPLACE_VARS: True})
+            if exists:
+                mailfh.write("Home Archive:\n")
+                mailfh.write(f"\t{pfwdefs.HOME_ARCHIVE.lower()} = {home_archive}\n")
+                mailfh.write(f"\tArchive directory = {config.getfull('root')}/{config.getfull(pfwdefs.ATTEMPT_ARCHIVE_PATH)}\n")
+                mailfh.write("\n")
 
 
-        mailfh.write("Target:\n")
-        mailfh.write(f"\tsite = {config.getfull('target_site')}\n")
-        (exists, target_archive) = config.search(pfwdefs.TARGET_ARCHIVE, {intgdefs.REPLACE_VARS: True})
-        if exists:
-            mailfh.write(f"\t{pfwdefs.TARGET_ARCHIVE.lower()} = {target_archive}\n")
-        mailfh.write(f"\tmetapackage = {config.getfull('pipeprod')} {config.getfull('pipever')}\n")
-        mailfh.write(f"\tjobroot = {config.getfull(pfwdefs.SW_JOB_BASE_DIR)}\n")
-        mailfh.write("\n\n")
+            mailfh.write("Submit:\n")
+            mailfh.write(f"\tmachine = {localmachine}\n")
+            mailfh.write(f"\tPROCESSINGFW_DIR = {os.environ['PROCESSINGFW_DIR']}\n")
+            mailfh.write(f"\torig config = {config.getfull('submit_dir')}/{config.getfull('submitwcl')}\n")
+            mailfh.write(f"\tdirectory = {config.getfull('work_dir')}\n\n")
 
-        mailfh.write("\n\n")
-        mailfh.write("------------------------------\n")
 
-        if msg2:
-            mailfh.write(f"{msg2}\n")
+            mailfh.write("Target:\n")
+            mailfh.write(f"\tsite = {config.getfull('target_site')}\n")
+            (exists, target_archive) = config.search(pfwdefs.TARGET_ARCHIVE, {intgdefs.REPLACE_VARS: True})
+            if exists:
+                mailfh.write(f"\t{pfwdefs.TARGET_ARCHIVE.lower()} = {target_archive}\n")
+            mailfh.write(f"\tmetapackage = {config.getfull('pipeprod')} {config.getfull('pipever')}\n")
+            mailfh.write(f"\tjobroot = {config.getfull(pfwdefs.SW_JOB_BASE_DIR)}\n")
+            mailfh.write("\n\n")
 
-        mailfh.close()
+            mailfh.write("\n\n")
+            mailfh.write("------------------------------\n")
+
+            if msg2:
+                mailfh.write(f"{msg2}\n")
 
         subject = f"DESDM: {project} {run} {block} {subject}"
         dryrun = False
@@ -97,9 +89,8 @@ def send_email(config, block, status, subject, msg1, msg2, sendit=True):
         if exists:
             if sendit:
                 print(f"Sending {mailfile} as email to {email} (block={block})")
-                mailfh = open(mailfile, 'r')
-                print(subprocess.check_output(['/bin/mail', '-s', subject, email], stdin=mailfh))
-                mailfh.close()
+                with open(mailfile, 'r', encoding="utf8") as mailfh:
+                    print(subprocess.check_output(['/bin/mail', '-s', subject, email], stdin=mailfh, text=True))
                 # don't delete email file as helps others debug as well as sometimes emails are missed
             else:
                 print(f"Not sending {mailfile} as email to {email} (block={block})")
@@ -131,9 +122,8 @@ def get_job_info(block):
     filepat = f"../{block}_*/*.jobinfo.out"
     jobinfofiles = glob.glob(filepat)
     for fname in jobinfofiles.sort():
-        jobinfofh = open(fname, "r")
-        iostr.write(jobinfofh.read())
-        jobinfofh.close()
+        with open(fname, "r", encoding="utf8") as jobinfofh:
+            iostr.write(jobinfofh.read())
     return iostr.getvalue()
 
 
@@ -154,7 +144,7 @@ def get_subblock_output(subblock):
     iostr.write(f"===== Standard error  - Last {NUMLINES} lines =====\n")
     if os.path.exists(fileerr):
         cmd = f"tail -{NUMLINES} {fileerr}"
-        lines = subprocess.check_output(cmd.split())
+        lines = subprocess.check_output(cmd.split(), text=True)
         iostr.write(lines)
     else:
         iostr.write(f"Could not read standard err file for {subblock}\n")
@@ -163,7 +153,7 @@ def get_subblock_output(subblock):
     iostr.write(f"===== Standard output - Last {NUMLINES} lines =====\n")
     if os.path.exists(fileout):
         cmd = f"tail -{NUMLINES} {fileout}"
-        lines = subprocess.check_output(cmd.split())
+        lines = subprocess.check_output(cmd.split(), text=True)
         iostr.write(lines)
     else:
         iostr.write(f"Could not read standard out file for {subblock}\n")
