@@ -274,7 +274,15 @@ def write_condor_descfile(jobname, filename, jobattribs, userattribs=None):
 
 def parse_condor_user_log(logfilename):
     """parses a condor log into a dictionary"""
-
+    ver = condor_version()
+    if ver.startswith('8'):
+        cversion = 8
+        pattern = re.compile(r'(\d+)\s+\((\d+).\d+.\d+\)\s+(\d+\/\d+\s+\d+:\d+:\d+)\s+(.+)')
+    elif ver.startswith('9'):
+        cversion = 9
+        pattern = re.compile(r'(\d+)\s+\((\d+).\d+.\d+\)\s+(\d+-\d+-\d+\s+\d+:\d+:\d+)\s+(.+)')
+    else:
+        raise CondorException('Unknown condor version')
     #print "parse_condor_user_log:  logfilename=", logfilename
     log = open(logfilename)
     lines = log.read().split('\n...\n')
@@ -288,17 +296,19 @@ def parse_condor_user_log(logfilename):
     for line in lines:
         if re.search(r'\S', line):
             splitline = line.split('\n')
-            result = re.match(r'(\d+)\s+\((\d+).\d+.\d+\)\s+(\d+\/\d+\s+\d+:\d+:\d+)\s+(.+)',
-                              splitline[0])
+            result = pattern.match(splitline[0])
             if result:
                 code = result.group(1)
                 jobnum = result.group(2)
                 eventtime = result.group(3)
-                eventdate = datetime.strptime(eventtime, '%m/%d %H:%M:%S')
-                if eventdate.month == logmonth:
-                    eventdate = eventdate.replace(year=logyear)
+                if cversion == 8:
+                    eventdate = datetime.strptime(eventtime, '%m/%d %H:%M:%S')
+                    if eventdate.month == logmonth:
+                        eventdate = eventdate.replace(year=logyear)
+                    else:
+                        eventdate = eventdate.replace(year=logyear - 1)
                 else:
-                    eventdate = eventdate.replace(year=logyear - 1)
+                    eventdate = datetime.strptime(eventtime, '%Y-%m-%d %H:%M:%S')
 
                 #desc = result.group(4)
 
