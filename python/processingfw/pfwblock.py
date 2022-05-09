@@ -2444,7 +2444,7 @@ def write_runjob_script(config):
     print("The target jobdir =", jobdir)
 
     usedb = miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT])
-    send_services = False:
+    send_services = False
     if pfwdefs.SEND_SERVICES_FILE in config:
         send_services = miscutils.convertBool(config[pfwdefs.SEND_SERVICES_FILE])
     scriptfile = config.get_filename('runjob')
