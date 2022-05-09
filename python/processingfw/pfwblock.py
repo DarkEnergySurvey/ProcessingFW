@@ -2445,8 +2445,10 @@ def write_runjob_script(config):
 
     usedb = miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT])
     send_services = False
+    services_file = None
     if pfwdefs.SEND_SERVICES_FILE in config:
         send_services = miscutils.convertBool(config[pfwdefs.SEND_SERVICES_FILE])
+        services_file = miscutils.parse_fullname(config['submit_des_services'], miscutils.CU_PARSE_FILENAME)
     scriptfile = config.get_filename('runjob')
 
     #      Since wcl's variable syntax matches shell variable syntax and
@@ -2533,7 +2535,7 @@ echo ""
 echo ""
 echo "Initial condor job directory = " $initdir
 echo "Files copied over by condor:"
-ls -l
+ls -la
 echo ""
 echo "Creating empty job output files to guarantee condor job nice exit"
 touch $envfile
@@ -2590,8 +2592,8 @@ fi
         for name, value in config[pfwdefs.SW_JOB_ENVIRONMENT].items():
             scriptstr += f'export {name.upper()}="{value}"\n'
     if send_services:
-        scriptstr += f"chmod 600 $initdir/{config['submit_des_services']}\n"
-        scriptstr += f"export DES_SERVICES=$initdir/{config['submit_des_services']}\n"
+        scriptstr += f"chmod 600 $initdir/{services_file}\n"
+        scriptstr += f"export DES_SERVICES=$initdir/{services_file}\n"
     scriptstr += 'echo ""\n'
 
     # print start of job information
