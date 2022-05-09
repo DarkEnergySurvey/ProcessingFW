@@ -2444,7 +2444,9 @@ def write_runjob_script(config):
     print("The target jobdir =", jobdir)
 
     usedb = miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT])
-    send_services = miscutils.convertBool(config[pfwdefs.SEND_SERVICES_FILE])
+    send_services = False:
+    if pfwdefs.SEND_SERVICES_FILE in config:
+        send_services = miscutils.convertBool(config[pfwdefs.SEND_SERVICES_FILE])
     scriptfile = config.get_filename('runjob')
 
     #      Since wcl's variable syntax matches shell variable syntax and
@@ -2755,7 +2757,9 @@ def create_jobmngr_dag(config, dagfile, scriptfile, joblist):
     if 'use_condor_transfer_output' in config:
         use_condor_transfer_output = miscutils.convertBool(config.getfull('use_condor_transfer_output'))
 
-    send_services = miscutils.convertBool(config[pfwdefs.SEND_SERVICES_FILE])
+    send_services = False
+    if pfwdefs.SEND_SERVICES_FILE in config:
+        send_services = miscutils.convertBool(config[pfwdefs.SEND_SERVICES_FILE])
     with open(f"{blkdir}/{dagfile}", 'w') as dagfh:
         for _, jobdict in joblist.items():
             jobnum = jobdict['jobnum']
