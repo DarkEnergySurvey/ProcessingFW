@@ -2448,7 +2448,7 @@ def write_runjob_script(config):
     services_file = None
     if pfwdefs.SEND_SERVICES_FILE in config:
         send_services = miscutils.convertBool(config[pfwdefs.SEND_SERVICES_FILE])
-        services_file = miscutils.parse_fullname(config['submit_des_services'], miscutils.CU_PARSE_FILENAME)
+        services_file = os.path.basename(config['submit_des_services'])
     scriptfile = config.get_filename('runjob')
 
     #      Since wcl's variable syntax matches shell variable syntax and
@@ -2772,7 +2772,7 @@ def create_jobmngr_dag(config, dagfile, scriptfile, joblist):
             dagfh.write(f"VARS {tjpad} exec=\"../{scriptfile}\"\n")
             dagfh.write(f"VARS {tjpad} args=\"{jobnum} {jobdict['inputwcltar']} {jobdict['jobwclfile']} {jobdict['tasksfile']} {jobdict['envfile']} {jobdict['outputwcltar']}")
             if send_services:
-                dagfh.write(f" {config['submit_des_services']}")
+                dagfh.write(f" {os.path.basename(config['submit_des_services'])}")
             dagfh.write("\"\n")
             dagfh.write(f"VARS {tjpad} transinput=\"{jobdict['inputwcltar']},{jobdict['jobwclfile']},{jobdict['tasksfile']},jobpost_{tjpad}.sh")
             if send_services:
