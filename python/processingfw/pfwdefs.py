@@ -33,6 +33,8 @@ SUBMIT_RUN_DIR = 'submit_run_dir'
 ATTEMPT_ARCHIVE_PATH = 'ops_run_dir'
 OPS_RUN_DIR = 'ops_run_dir'
 
+SEND_SERVICES_FILE = 'send_services'
+
 HOME_ARCHIVE = 'home_archive'
 USE_HOME_ARCHIVE_INPUT = 'use_home_archive_input'
 USE_HOME_ARCHIVE_OUTPUT = 'use_home_archive_output'
