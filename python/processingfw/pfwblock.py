@@ -2686,7 +2686,7 @@ echo ""
 echo ""
 """
     if send_services:
-        scriptstr += f"rm -f {config['submit_des_services']}\n"
+        scriptstr += f"rm -f $DES_SERVICES\n"
     scriptstr += """
 if [ -e outputwcl ]; then
     tar -cf $initdir/$outputtar outputwcl;
