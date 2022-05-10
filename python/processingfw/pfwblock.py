@@ -1306,14 +1306,12 @@ def write_jobwcl(config, jobkey, jobdict):
         print(f"ERROR\nError: creating loading job_file_mvmt class\n{err}")
         raise
 
-
     if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
-        if send_services and 'des_services' in jobwcl:
-            del jobwcl['des_services']
+        if send_services:
+            jobwcl['des_services'] = "INCOMING_SERVICES"
         elif 'target_des_services' in config and config.getfull('target_des_services') is not None:
             jobwcl['des_services'] = config.getfull('target_des_services')
         jobwcl['des_db_section'] = config['target_des_db_section']
-
 
     jobwcl['filetype_metadata'] = config['filetype_metadata']
     jobwcl['file_header'] = config['file_header']
@@ -2599,6 +2597,7 @@ fi
     if send_services:
         scriptstr += f"chmod 600 $initdir/{services_file}\n"
         scriptstr += f"export DES_SERVICES=$initdir/{services_file}\n"
+        scriptstr += f"sed 's/INCOMING_SERVICES/$DES_SERVICES/g' $jobwcl\n"
     scriptstr += 'echo ""\n'
 
     # print start of job information
