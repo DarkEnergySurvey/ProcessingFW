@@ -1176,10 +1176,8 @@ def write_jobwcl(config, jobkey, jobdict):
                                         }
             gnum += 1
     send_services = False
-    services_file = None
     if pfwdefs.SEND_SERVICES_FILE in config:
         send_services = miscutils.convertBool(config[pfwdefs.SEND_SERVICES_FILE])
-        services_file = os.path.basename(config['submit_des_services'])
 
     jobwcl = WCL({'pfw_attempt_id': config['pfw_attempt_id'],
                   pfwdefs.REQNUM: config.getfull(pfwdefs.REQNUM),
@@ -1310,8 +1308,8 @@ def write_jobwcl(config, jobkey, jobdict):
 
 
     if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
-        if send_services:
-            jobwcl['des_services'] = services_file
+        if send_services and 'des_services' in jobwcl:
+            del jobwcl['des_services']
         elif 'target_des_services' in config and config.getfull('target_des_services') is not None:
             jobwcl['des_services'] = config.getfull('target_des_services')
         jobwcl['des_db_section'] = config['target_des_db_section']
