@@ -1824,6 +1824,8 @@ def run_job(args):
         # export serviceAccess info to environment
         if 'des_services' in jobwcl:
             os.environ['DES_SERVICES'] = jobwcl['des_services']
+        elif 'DES_SERVICES' in os.environ:
+            jobwcl['des_services'] = os.environ['DES_SERVICES']
         if 'des_db_section' in jobwcl:
             os.environ['DES_DB_SECTION'] = jobwcl['des_db_section']
 
