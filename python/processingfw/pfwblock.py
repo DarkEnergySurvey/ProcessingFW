@@ -2597,7 +2597,7 @@ fi
     if send_services:
         scriptstr += f"chmod 600 $initdir/{services_file}\n"
         scriptstr += f"export DES_SERVICES=$initdir/{services_file}\n"
-        scriptstr += f"sed 's/INCOMING_SERVICES/$DES_SERVICES/g' $jobwcl\n"
+        scriptstr += f"sed -i \"s/INCOMING_SERVICES/$DES_SERVICES/g\" $jobwcl\n"
     scriptstr += 'echo ""\n'
 
     # print start of job information
