@@ -1308,7 +1308,7 @@ def write_jobwcl(config, jobkey, jobdict):
 
     if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
         if send_services:
-            jobwcl['des_services'] = "INCOMING_SERVICES"
+            jobwcl['des_services'] = "REPLACE_SERVICES"
         elif 'target_des_services' in config and config.getfull('target_des_services') is not None:
             jobwcl['des_services'] = config.getfull('target_des_services')
         jobwcl['des_db_section'] = config['target_des_db_section']
@@ -2597,8 +2597,8 @@ fi
     if send_services:
         scriptstr += f"chmod 600 $initdir/{services_file}\n"
         scriptstr += f"export DES_SERVICES=$initdir/{services_file}\n"
-        scriptstr += f"sed -i \"s/INCOMING_SERVICES/$DES_SERVICES/g\" $jobwcl\n"
-    scriptstr += 'echo ""\n'
+        scriptstr += f"sed -i \"s|REPLACE_SERVICES|$DES_SERVICES|g\" $jobwcl\n"
+        scriptstr += 'echo ""\n'
 
     # print start of job information
 
